@@ -43,14 +43,14 @@ class Frontend():
             self.symbol_names.append(i + '--S')
             
         self.symbol_names.append('ALL')
-        self.logic_server_port = 5558
-        self.front_logic_port = 5559
+        self.logic_front = 5559
+        self.front_logic = 5558
 
     def edit_symbol(self, new_params):
 
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as logic_server:
-                logic_server.bind(('localhost', self.logic_server_port))
+                logic_server.bind(('localhost', self.logic_front))
                 logic_server.listen(1)
                 conexion, direccion = logic_server.accept()
                 data = conexion.recv(1024)
@@ -58,14 +58,12 @@ class Frontend():
                 st.warning('Edit Symbol: ' + str(texto))
                 conexion.close()
 
-            #logic_server.close()
-            # time.sleep(5)
-
         except OSError:
             st.warning('Server occupied, try again')
         except Exception as e:
             st.warning('ERROR: ' + str(e))
-
+        finally:
+            conexion.close()
 
         
         with open("master.pickle", "rb") as f:
@@ -84,7 +82,7 @@ class Frontend():
                 setattr(selected_symbol, attribute_name, new_params['value'])
             warn = 'Changed completed ' + 'Symbol: ' + selected_symbol.name + 'Param: ' + attribute_name + 'New Value: ' + str(new_params['value'])
         
-        # time.sleep(5)
+        time.sleep(5)
         st.write(warn)
 
         with open("master.pickle", "wb") as f:
@@ -92,7 +90,7 @@ class Frontend():
             
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as front_logic_socket:
-                front_logic_socket.connect(('localhost', self.front_logic_port))
+                front_logic_socket.connect(('localhost', self.front_logic))
                 init_message = 'EDIT SYMBOL'
                 message = init_message.encode('utf-8')
                 front_logic_socket.send(message)
@@ -104,19 +102,8 @@ class Frontend():
             st.warning('Server occupied at return, try again : ' + str(e))
         except Exception as e:
             st.warning('ERROR: ' + str(e))
-
-        # try:       
-        #     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as front_logic_socket:
-        #         front_logic_socket.connect(('localhost', self.front_logic_port))
-        #         texto = 'Hey logic, sigue con lo tuyo'
-        #         mensaje = texto.encode('utf-8')
-        #         front_logic_socket.send(mensaje)
-        #         #front_logic_socket.close()
-        #     st.warning('Conexion closed')
-        # except OSError:
-        #     st.warning('Server occupied at return, try again')
-        # except Exception as e:
-        #     st.warning('ERROR: ' + str(e))
+        finally:
+            front_logic_socket.close()
 
         return
 
@@ -124,15 +111,12 @@ class Frontend():
 
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as logic_server:
-                logic_server.bind(('localhost', self.logic_server_port))
+                logic_server.bind(('localhost', self.logic_front))
                 logic_server.listen(1)
                 conexion, direccion = logic_server.accept()
                 data = conexion.recv(1024)
                 texto = data.decode('utf-8')
                 st.warning('Add Symbol: ' + str(texto))
-
-            #logic_server.close()
-            # time.sleep(5)
 
         except OSError:
             st.warning('Server occupied, try again')
@@ -144,7 +128,7 @@ class Frontend():
             
         try:       
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as front_logic_socket:
-                front_logic_socket.connect(('localhost', 5558))
+                front_logic_socket.connect(('localhost', self.front_logic))
                 init_message = 'EDIT SYMBOL'
                 message = init_message.encode('utf-8')
                 front_logic_socket.send(message)
@@ -154,116 +138,124 @@ class Frontend():
             st.warning('Server occupied at return, try again')
         except Exception as e:
             st.warning('ERROR: ' + str(e))
+        finally:
+            front_logic_socket.close()
 
         return
     
     def switch_symbols(self, switch_params):
-
+        
+        conexion = None
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as logic_server:
-                logic_server.bind(('localhost', self.logic_server_port))
+                logic_server.bind(('localhost', self.logic_front))
                 logic_server.listen(1)
                 conexion, direccion = logic_server.accept()
                 data = conexion.recv(1024)
                 texto = data.decode('utf-8')
                 st.warning('Switch Symbol: ' + str(texto))
                 conexion.close()
-            
-            #logic_server.close()
-            # time.sleep(5)
-        
-        except OSError:
-            st.warning('Server occupied, try again')
+                    
+        except OSError as e:
+            st.warning('Server occupied, try again' + str(e))
         except Exception as e:
             st.warning('ERROR: ' + str(e))
+        finally:
+            if conexion is not None:
+                conexion.close()
 
 
         with open("master.pickle", "rb") as f:
             symbol_list = pickle.load(f)
-            
-        if switch_params['side'] == 'ALl':
+        
+        # st.warning('SIDE: ' + str(switch_params['side']))
+        # st.warning('MODE: ' + str(switch_params['mode']))
+
+        if switch_params['side'] == 'All':
             if switch_params['mode'] == 'OFF':
                 for i in symbol_list:
+                    st.warning('Before: ' + i.name + str(i.switch))
                     i.switch = False
-                    st.session_state.long_switch = False
-                    st.session_state.short_switch = False
-            elif switch_params['mode'] == 'ON':
+                    st.warning('After: ' + i.name + str(i.switch))
+            #         st.session_state.long_switch = False
+            #         st.session_state.short_switch = False
+            # elif switch_params['mode'] == 'ON':
                 for i in symbol_list:
+                    # st.warning('Before: ' + i.name + str(i.switch))
                     i.switch = True
-                    st.session_state.long_switch = True
-                    st.session_state.short_switch = True
+                    # st.warning('After: ' + i.name + str(i.switch))
+                    # st.session_state.long_switch = True
+                    # st.session_state.short_switch = True
         
         elif switch_params['side'] == 'Long':
             if switch_params['mode'] == 'OFF':
                 for i in symbol_list:
                     if i.side == 'long':
+                        # st.warning('Before: ' + i.name + str(i.switch))
                         i.switch = False
-                        st.session_state.long_switch = False
+                        # st.warning('After: ' + i.name + str(i.switch))
+
+                        # st.session_state.long_switch = False
             elif switch_params['mode'] == 'ON':
                 for i in symbol_list:
                     if i.side == 'long':
+                        # st.warning('Before: ' + i.name + str(i.switch))
                         i.switch = True
-                        st.session_state.long_switch = True
+                        # st.warning('After: ' + i.name + str(i.switch))
+
+                        # st.session_state.long_switch = True
                         
         elif switch_params['side'] == 'Short':
             if switch_params['mode'] == 'OFF':
                 for i in symbol_list:
                     if i.side == 'short':
+                        # st.warning('Before: ' + i.name + str(i.switch))
                         i.switch = False
-                        st.session_state.short_switch = False
+                        # st.warning('After: ' + i.name + str(i.switch))
+
+                        # st.session_state.short_switch = False
             elif switch_params['mode'] == 'ON':
                 for i in symbol_list:
                     if i.side == 'short':
+                        # st.warning('Before: ' + i.name + str(i.switch))
                         i.switch = True
-                        st.session_state.short_switch = True
+                        # st.warning('After: ' + i.name + str(i.switch))
 
+                        # st.session_state.short_switch = True
+        
         warn = switch_params['side'] + ' switches turned ' + switch_params['mode']
-        """
-        def update_switch(symbol_list, side, mode):
-            for symbol in symbol_list:
-                if side == 'All' or symbol.side == side:
-                    symbol.switch = (mode == 'ON')
-                    if side == 'All' or symbol.side == 'long':
-                        st.session_state.long_switch = (mode == 'ON')
-                    if side == 'All' or symbol.side == 'short':
-                        st.session_state.short_switch = (mode == 'ON')
         
-        def execute_switch_actions(symbol_list, switch_params):
-            side = switch_params['side']
-            mode = switch_params['mode']
-        
-            if side in ['All', 'Long', 'Short'] and mode in ['ON', 'OFF']:
-                update_switch(symbol_list, side, mode)
-                warn = f"{side} switches turned {mode}"
-            else:
-                warn = "Invalid side or mode specified."
-        
-            return warn
-        
-        # Uso de la función
-        warn = execute_switch_actions(symbol_list, switch_params)
-        """
-            
-        # time.sleep(5)
         st.warning(warn)
 
         with open("master.pickle", "wb") as f:
             pickle.dump(symbol_list, f)
+            
+        with open("master.pickle", "rb") as f:
+            check_symbol_list = pickle.load(f)
+        
+        for i in check_symbol_list:
+            st.warning(i.name + str(i.switch))
 
         try:
+            time.sleep(5)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as front_logic_socket:
-                front_logic_socket.connect(('localhost', self.front_logic_port))
+                front_logic_socket.connect(('localhost', self.front_logic))
                 init_message = 'SWITCH'
                 message = init_message.encode('utf-8')
                 front_logic_socket.send(message)
+                st.warning(init_message + ' sent')
+                
                 mensaje = warn.encode('utf-8')
                 front_logic_socket.send(mensaje)
+                st.warning(warn + ' sent')
                 
-            st.warning('Conexion closed')
         except OSError as e:
             st.warning('Server occupied at return, try again : ' + str(e))
         except Exception as e:
             st.warning('ERROR: ' + str(e))
+        finally:
+            front_logic_socket.close()
+            st.warning('Conection closed')
 
         return 
     
@@ -858,10 +850,10 @@ if 'button_4' not in st.session_state:
 if 'button_6' not in st.session_state:
     st.session_state.button_6 = False
 
-if 'long_switch' not in st.session_state:
-    st.session_state.long_switch = True
-if 'short_switch' not in st.session_state:
-    st.session_state.short_switch = True
+# if 'long_switch' not in st.session_state:
+#     st.session_state.long_switch = True
+# if 'short_switch' not in st.session_state:
+#     st.session_state.short_switch = True
 
 
 if button_6:
