@@ -66,44 +66,52 @@ class Frontend():
             conexion.close()
 
         
-        with open("master.pickle", "rb") as f:
-            symbol_list = pickle.load(f)
+        # with open("master.pickle", "rb") as f:
+        #     symbol_list = pickle.load(f)
         
-        selected_symbol = next(symbol for symbol in symbol_list if symbol.name == new_params['name'])
-        mapeo = {'Drop': 'drop', 'TP': 'profit', 'K': 'k', 'Buy Trail': 'buy_trail', 'Sell Trail': 'sell_trail', 'Drop Param':'drop_param', 'Level': 'level', 'Pond': 'pond',
-                    'Switch': 'switch', 'Status': 'status', 'Can Open': 'can_open', 'Can Average': 'can_average', 'Can Close': 'can_close', 
-                    'Can Open Trail': 'can_open_trail', 'Can Average Trail': 'can_average_trail', 'Can Close Trail': 'can_close_trail'}
+        # selected_symbol = next(symbol for symbol in symbol_list if symbol.name == new_params['name'])
+        # mapeo = {'Drop': 'drop', 'TP': 'profit', 'K': 'k', 'Buy Trail': 'buy_trail', 'Sell Trail': 'sell_trail', 'Drop Param':'drop_param', 'Level': 'level', 'Pond': 'pond',
+        #             'Switch': 'switch', 'Status': 'status', 'Can Open': 'can_open', 'Can Average': 'can_average', 'Can Close': 'can_close', 
+        #             'Can Open Trail': 'can_open_trail', 'Can Average Trail': 'can_average_trail', 'Can Close Trail': 'can_close_trail'}
         
-        if new_params['attribute'] in mapeo:
-            attribute_name = mapeo[new_params['attribute']]
-            if attribute_name in ['switch', 'status', 'can_open', 'can_average', 'can_close', 'can_open_trail', 'can_average_trail', 'can_close_trail']:
-                setattr(selected_symbol, attribute_name, bool(int(new_params['value'])))
-            else:
-                setattr(selected_symbol, attribute_name, new_params['value'])
-            warn = 'Changed completed ' + 'Symbol: ' + selected_symbol.name + 'Param: ' + attribute_name + 'New Value: ' + str(new_params['value'])
+        # if new_params['attribute'] in mapeo:
+        #     attribute_name = mapeo[new_params['attribute']]
+        #     if attribute_name in ['switch', 'status', 'can_open', 'can_average', 'can_close', 'can_open_trail', 'can_average_trail', 'can_close_trail']:
+        #         setattr(selected_symbol, attribute_name, bool(int(new_params['value'])))
+        #     else:
+        #         setattr(selected_symbol, attribute_name, new_params['value'])
+        #     warn = 'Changed completed ' + 'Symbol: ' + selected_symbol.name + 'Param: ' + attribute_name + 'New Value: ' + str(new_params['value'])
         
-        time.sleep(5)
-        st.write(warn)
+        # time.sleep(5)
+        # st.write(warn)
 
-        with open("master.pickle", "wb") as f:
-            pickle.dump(symbol_list, f)
+        # with open("master.pickle", "wb") as f:
+        #     pickle.dump(symbol_list, f)
             
         try:
+            time.sleep(5)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as front_logic_socket:
                 front_logic_socket.connect(('localhost', self.front_logic))
                 init_message = 'EDIT SYMBOL'
                 message = init_message.encode('utf-8')
                 front_logic_socket.send(message)
-                mensaje = warn.encode('utf-8')
-                front_logic_socket.send(mensaje)
+                st.warning(init_message + ' sent')
+                time.sleep(5)
                 
-            st.warning('Conexion closed')
+                serialized_params = pickle.dumps(new_params)
+                front_logic_socket.send(serialized_params)
+                
+                # mensaje = warn.encode('utf-8')
+                # front_logic_socket.send(mensaje)
+                st.warning(str(new_params) + ' sent')
+
         except OSError as e:
             st.warning('Server occupied at return, try again : ' + str(e))
         except Exception as e:
             st.warning('ERROR: ' + str(e))
         finally:
             front_logic_socket.close()
+            st.warning('Conexion closed')
 
         return
 
@@ -126,14 +134,20 @@ class Frontend():
             conexion.close()
 
             
-        try:       
+        try:    
+            time.sleep(5)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as front_logic_socket:
                 front_logic_socket.connect(('localhost', self.front_logic))
-                init_message = 'EDIT SYMBOL'
+                init_message = 'ADD SYMBOL'
                 message = init_message.encode('utf-8')
                 front_logic_socket.send(message)
+                st.warning(init_message + ' sent')
+                time.sleep(5)
+
                 serialized_inputs = pickle.dumps(new_symbol)
                 front_logic_socket.send(serialized_inputs)
+                st.warning(str(new_symbol) + ' sent')
+
         except OSError:
             st.warning('Server occupied at return, try again')
         except Exception as e:
@@ -145,7 +159,6 @@ class Frontend():
     
     def switch_symbols(self, switch_params):
         
-        conexion = None
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as logic_server:
                 logic_server.bind(('localhost', self.logic_front))
@@ -161,80 +174,7 @@ class Frontend():
         except Exception as e:
             st.warning('ERROR: ' + str(e))
         finally:
-            if conexion is not None:
-                conexion.close()
-
-
-        with open("master.pickle", "rb") as f:
-            symbol_list = pickle.load(f)
-        
-        # st.warning('SIDE: ' + str(switch_params['side']))
-        # st.warning('MODE: ' + str(switch_params['mode']))
-
-        if switch_params['side'] == 'All':
-            if switch_params['mode'] == 'OFF':
-                for i in symbol_list:
-                    st.warning('Before: ' + i.name + str(i.switch))
-                    i.switch = False
-                    st.warning('After: ' + i.name + str(i.switch))
-            #         st.session_state.long_switch = False
-            #         st.session_state.short_switch = False
-            # elif switch_params['mode'] == 'ON':
-                for i in symbol_list:
-                    # st.warning('Before: ' + i.name + str(i.switch))
-                    i.switch = True
-                    # st.warning('After: ' + i.name + str(i.switch))
-                    # st.session_state.long_switch = True
-                    # st.session_state.short_switch = True
-        
-        elif switch_params['side'] == 'Long':
-            if switch_params['mode'] == 'OFF':
-                for i in symbol_list:
-                    if i.side == 'long':
-                        # st.warning('Before: ' + i.name + str(i.switch))
-                        i.switch = False
-                        # st.warning('After: ' + i.name + str(i.switch))
-
-                        # st.session_state.long_switch = False
-            elif switch_params['mode'] == 'ON':
-                for i in symbol_list:
-                    if i.side == 'long':
-                        # st.warning('Before: ' + i.name + str(i.switch))
-                        i.switch = True
-                        # st.warning('After: ' + i.name + str(i.switch))
-
-                        # st.session_state.long_switch = True
-                        
-        elif switch_params['side'] == 'Short':
-            if switch_params['mode'] == 'OFF':
-                for i in symbol_list:
-                    if i.side == 'short':
-                        # st.warning('Before: ' + i.name + str(i.switch))
-                        i.switch = False
-                        # st.warning('After: ' + i.name + str(i.switch))
-
-                        # st.session_state.short_switch = False
-            elif switch_params['mode'] == 'ON':
-                for i in symbol_list:
-                    if i.side == 'short':
-                        # st.warning('Before: ' + i.name + str(i.switch))
-                        i.switch = True
-                        # st.warning('After: ' + i.name + str(i.switch))
-
-                        # st.session_state.short_switch = True
-        
-        warn = switch_params['side'] + ' switches turned ' + switch_params['mode']
-        
-        st.warning(warn)
-
-        with open("master.pickle", "wb") as f:
-            pickle.dump(symbol_list, f)
-            
-        with open("master.pickle", "rb") as f:
-            check_symbol_list = pickle.load(f)
-        
-        for i in check_symbol_list:
-            st.warning(i.name + str(i.switch))
+            conexion.close()
 
         try:
             time.sleep(5)
@@ -244,10 +184,14 @@ class Frontend():
                 message = init_message.encode('utf-8')
                 front_logic_socket.send(message)
                 st.warning(init_message + ' sent')
+                time.sleep(5)
                 
-                mensaje = warn.encode('utf-8')
-                front_logic_socket.send(mensaje)
-                st.warning(warn + ' sent')
+                serialized_switch = pickle.dumps(switch_params)
+                front_logic_socket.send(serialized_switch)
+                
+                # mensaje = warn.encode('utf-8')
+                # front_logic_socket.send(mensaje)
+                st.warning(str(switch_params) + ' sent')
                 
         except OSError as e:
             st.warning('Server occupied at return, try again : ' + str(e))
@@ -477,40 +421,6 @@ class Frontend():
     
     def symbols_page(self):
         
-        # SWITCH SYMBOLS
-        symbol_side = st.selectbox("Select Symbol", ['All', 'Long', 'Short'])
-        switch_mode = st.selectbox("Select Mode", ['ON', 'OFF'])
-        switch_params = {'side':symbol_side, 'mode':switch_mode}
-        with st.form("switch_form"):
-            st.form_submit_button(label='SWITCH SYMBOLS', on_click=self.switch_symbols, args=(switch_params,))
-        
-        # EDIT SYMBOLS
-        symbol_n = st.selectbox("Select Symbol", self.symbol_names)
-        param = st.selectbox("Select Parameter", ['Switch', 'Engine', 'Drop', 'TP', 'K', 'Buy Trail', 'Sell Trail', 'Drop Param', 'Level', 'Pond',
-                                                  'Status', 'Can Open', 'Can Average', 'Can Close', 'Can Open Trail', 'Can Average Trail', 'Can Close Trail'])
-        new_value = st.number_input(str(param))
-        new_params ={'name': symbol_n, 'attribute': param, 'value': new_value}
-        
-        with st.form("edit_form"):
-            st.form_submit_button(label="EDIT SYMBOL", on_click=self.edit_symbol, args=(new_params,))
-
-        # ADD SYMBOLS
-        drop = st.number_input('drop')
-        profit = st.number_input('profit')
-        k = st.number_input('k')
-        buy_trail = st.number_input('buy trail')
-        sell_trail = st.number_input('sell trail')
-        drop_param = st.number_input('drop param')
-        level = st.number_input('level')
-        pond = st.number_input('pond')
-        asset = st.text_input('asset')
-        inputs = [{'drop': drop, 'profit': profit, 'k': k, 'buy_trail':buy_trail, 'sell_trail':sell_trail, 'drop_param':drop_param, 'level':level, 'pond':pond, 'asset': asset},
-                  {'drop': -drop, 'profit': profit, 'k': k, 'buy_trail':buy_trail, 'sell_trail':sell_trail, 'drop_param':drop_param, 'level':level, 'pond':pond, 'asset': asset}]
-        
-        with st.form("add_form"):
-            st.form_submit_button(label="ADD SYMBOL", on_click=self.add_symbol, args=(inputs,))
-          
-
         # TABLA SYMBOLS
 
         df_symbols = pd.read_sql_table('symbols', self.conn)
@@ -533,11 +443,44 @@ class Frontend():
             showlegend=False,
             title={'text': 'Symbols'},
             width=1000,  # Ancho de la tabla, puedes ajustarlo según tus necesidades
-            height=1500  # Altura de la tabla, puedes ajustarlo según tus necesidades
+            height=200  # Altura de la tabla, puedes ajustarlo según tus necesidades
         )
         
         st.plotly_chart(fig)
         
+        # SWITCH SYMBOLS
+        symbol_side = st.selectbox("Select Symbol", ['All', 'Long', 'Short'])
+        switch_mode = st.selectbox("Select Mode", ['ON', 'OFF'])
+        switch_params = {'side':symbol_side, 'mode':switch_mode}
+        with st.form("switch_form"):
+            st.form_submit_button(label='SWITCH SYMBOLS', on_click=self.switch_symbols, args=(switch_params,))
+        
+        # EDIT SYMBOLS
+        symbol_n = st.selectbox("Select Symbol", self.symbol_names)
+        param = st.selectbox("Select Parameter", ['Switch', 'Engine', 'Drop', 'TP', 'K', 'Buy Trail', 'Sell Trail', 'Drop Param', 'Level', 'Pond',
+                                                  'Status', 'Can Open', 'Can Average', 'Can Close', 'Can Open Trail', 'Can Average Trail', 'Can Close Trail'])
+        new_value = st.number_input(str(param))
+        new_params ={'name': symbol_n, 'attribute': param, 'value': new_value}
+        
+        with st.form("edit_form"):
+            st.form_submit_button(label="EDIT SYMBOL", on_click=self.edit_symbol, args=(new_params,))
+
+        # ADD SYMBOLS
+        drop = st.number_input('drop', value=1)
+        profit = st.number_input('profit', value=0.5)
+        k = st.number_input('k', value=1.2)
+        buy_trail = st.number_input('buy trail', value=0.25)
+        sell_trail = st.number_input('sell trail', value=0.15)
+        drop_param = st.number_input('drop param', value=2.5)
+        level = st.number_input('level', value=1)
+        pond = st.number_input('pond', value=5)
+        asset = st.text_input('asset')
+        inputs = [{'drop': drop, 'profit': profit, 'k': k, 'buy_trail':buy_trail, 'sell_trail':sell_trail, 'drop_param':drop_param, 'level':level, 'pond':pond, 'asset': asset},
+                  {'drop': -drop, 'profit': profit, 'k': k, 'buy_trail':sell_trail, 'sell_trail':buy_trail, 'drop_param':drop_param, 'level':level, 'pond':pond, 'asset': asset}]
+        
+        with st.form("add_form"):
+            st.form_submit_button(label="ADD SYMBOL", on_click=self.add_symbol, args=(inputs,))
+         
         return
         
     def transactions_page(self):

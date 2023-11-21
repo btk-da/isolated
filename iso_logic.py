@@ -134,23 +134,60 @@ if __name__ == '__main__':
                     data = conexion.recv(1024)
                     texto = data.decode('utf-8')
                     requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Text received: ' + texto, 'parse_mode': 'HTML'})
+                    time.sleep(2)
                 
-                    # if texto == 'SWITCH':
                     if 'SWITCH' in texto:
-                        switch_data = conexion.recv(1024)
-                        switch_texto = switch_data.decode('utf-8')
-                        requests.post(url, data={'chat_id': '-1001802125737', 'text': 'Change: ' + str(switch_texto), 'parse_mode': 'HTML'})
+                        switch_data = conexion.recv(4096)
+                        switch_params = pickle.loads(switch_data)
+                        requests.post(url, data={'chat_id': '-1001802125737', 'text': 'Side: ' + switch_params['side'] + ' Mode: ' + switch_params['mode'], 'parse_mode': 'HTML'})
                         
                         with open("master.pickle", "rb") as f:
                             master_back = pickle.load(f)
+                            
                         master.symbol_list = master_back
                         for i in master.symbol_list:
                             i.master = master
-    
+                            
+                        if switch_params['side'] == 'All':
+                            if switch_params['mode'] == 'OFF':
+                                for i in master.symbol_list:
+                                    i.switch = False
+                                    requests.post(url, data={'chat_id': '-1001802125737', 'text':  i.name + 'turned  ' + str(i.switch), 'parse_mode': 'HTML'})
+                            elif switch_params['mode'] == 'ON':
+                                for i in master.symbol_list:
+                                    i.switch = True
+                                    requests.post(url, data={'chat_id': '-1001802125737', 'text':  i.name + 'turned  ' + str(i.switch), 'parse_mode': 'HTML'})
+                                    
+                        elif switch_params['side'] == 'Long':
+                            if switch_params['mode'] == 'OFF':
+                                for i in master.symbol_list:
+                                    if i.side == 'Long':
+                                        i.switch = False
+                                        requests.post(url, data={'chat_id': '-1001802125737', 'text':  i.name + 'turned  ' + str(i.switch), 'parse_mode': 'HTML'})
+
+                            elif switch_params['mode'] == 'ON':
+                                for i in master.symbol_list:
+                                    if i.side == 'Long':
+                                        i.switch = True
+                                        requests.post(url, data={'chat_id': '-1001802125737', 'text':  i.name + 'turned  ' + str(i.switch), 'parse_mode': 'HTML'})
+
+                        elif switch_params['side'] == 'Short':
+                            if switch_params['mode'] == 'OFF':
+                                for i in master.symbol_list:
+                                    if i.side == 'Short':
+                                        i.switch = False
+                                        requests.post(url, data={'chat_id': '-1001802125737', 'text':  i.name + 'turned  ' + str(i.switch), 'parse_mode': 'HTML'})
+
+                            elif switch_params['mode'] == 'ON':
+                                for i in master.symbol_list:
+                                    if i.side == 'Short':
+                                        i.switch = True
+                                        requests.post(url, data={'chat_id': '-1001802125737', 'text':  i.name + 'turned  ' + str(i.switch), 'parse_mode': 'HTML'})
+
                         restart_symbols = delete(master.account.notifier.tables['symbols'])
                         sql_session.execute(restart_symbols)
                         for symbol in master.symbol_list:
-                            new_row = master.account.notifier.tables['symbols'](Name=symbol.name, Drop=symbol.drop, Profit=symbol.profit, K=symbol.k, Buy_trail=symbol.buy_trail, Sell_trail=symbol.sell_trail, Switch=symbol.switch, Symbol_status=symbol.status, Can_open=symbol.can_open, Can_average=symbol.can_average, Can_close=symbol.can_close, Can_open_trail=symbol.can_open_trail, Can_average_trail=symbol.can_average_trail, Can_close_trail=symbol.can_close_trail)
+                            new_row = master.account.notifier.tables['symbols'](Name=symbol.name, Drop=symbol.drop, Profit=symbol.profit, K=symbol.k, Buy_trail=symbol.buy_trail, Sell_trail=symbol.sell_trail, Drop_param=symbol.drop_param, Level=symbol.level, Pond=symbol.pond, Switch=symbol.switch, Symbol_status=symbol.status, Can_open=symbol.can_open, Can_average=symbol.can_average, Can_close=symbol.can_close, Can_open_trail=symbol.can_open_trail, Can_average_trail=symbol.can_average_trail, Can_close_trail=symbol.can_close_trail)
                             sql_session.add(new_row)
                         sql_session.commit()
     
@@ -158,27 +195,51 @@ if __name__ == '__main__':
                         requests.post(url, data={'chat_id': '-1001802125737', 'text': 'Engine started (switch)', 'parse_mode': 'HTML'})
                         conexion.close()
     
-                    # elif texto == 'EDIT SYMBOL':
                     elif 'EDIT SYMBOL' in texto:
-    
-                        edit_symbol_data = conexion.recv(1024)
-                        edit_symbol_texto = edit_symbol_data.decode('utf-8')
-                        requests.post(url, data={'chat_id': '-1001802125737', 'text': 'Change: ' + edit_symbol_texto, 'parse_mode': 'HTML'})
+                        # edit_symbol_data = conexion.recv(1024)
+                        # edit_symbol_texto = edit_symbol_data.decode('utf-8')
+                        # requests.post(url, data={'chat_id': '-1001802125737', 'text': 'Change: ' + edit_symbol_texto, 'parse_mode': 'HTML'})
+                        # new_params ={'name': symbol_n, 'attribute': param, 'value': new_value}
 
+                        edit_symbol_data = conexion.recv(4096)
+                        edit_params = pickle.loads(edit_symbol_data)
+                        requests.post(url, data={'chat_id': '-1001802125737', 'text': 'Name: ' + edit_params['name'] + ' Attribute: ' + edit_params['attribute'] + ' Value: ' + str(edit_params['value']), 'parse_mode': 'HTML'})
+                        
                         
                         with open("master.pickle", "rb") as f:
-                            master_back = pickle.load(f)
-                        master.symbol_list = master_back
+                            symbol_list = pickle.load(f)
+                        
+                        selected_symbol = next(symbol for symbol in symbol_list if symbol.name == edit_params['name'])
+                        mapeo = {'Drop': 'drop', 'TP': 'profit', 'K': 'k', 'Buy Trail': 'buy_trail', 'Sell Trail': 'sell_trail', 'Drop Param':'drop_param', 'Level': 'level', 'Pond': 'pond',
+                                    'Switch': 'switch', 'Status': 'status', 'Can Open': 'can_open', 'Can Average': 'can_average', 'Can Close': 'can_close', 
+                                    'Can Open Trail': 'can_open_trail', 'Can Average Trail': 'can_average_trail', 'Can Close Trail': 'can_close_trail'}
+                        
+                        if edit_params['attribute'] in mapeo:
+                            attribute_name = mapeo[edit_params['attribute']]
+                            if attribute_name in ['switch', 'status', 'can_open', 'can_average', 'can_close', 'can_open_trail', 'can_average_trail', 'can_close_trail']:
+                                setattr(selected_symbol, attribute_name, bool(int(edit_params['value'])))
+                            else:
+                                setattr(selected_symbol, attribute_name, edit_params['value'])
+                        
+                        warn = 'Changed completed ' + 'Symbol: ' + selected_symbol.name + 'Param: ' + str(attribute_name) + 'New Value: ' + str(selected_symbol.drop_param)
+                        requests.post(url, data={'chat_id': '-1001802125737', 'text': warn, 'parse_mode': 'HTML'})
+                        
+                        # with open("master.pickle", "wb") as f:
+                        #     pickle.dump(symbol_list, f)
+
+                        master.symbol_list = symbol_list                           
                         for i in master.symbol_list:
                             i.master = master
                             i.trading_points()
-                        
+                            requests.post(url, data={'chat_id': '-1001802125737', 'text': attribute_name + str(i.drop_param), 'parse_mode': 'HTML'})
+
+                            
+                        # warn = 'Changed completed ' + 'Symbol: ' + selected_symbol.name + 'Param: ' + str(attribute_name) + 'New Value: ' + str(selected_symbol.attribute_name)
+                            
                         restart_symbols = delete(master.account.notifier.tables['symbols'])
                         sql_session.execute(restart_symbols)
                         for symbol in master.symbol_list:
-                            new_row = master.account.notifier.tables['symbols'](Name=symbol.name, Drop=symbol.drop, Profit=symbol.profit, K=symbol.k, Buy_trail=symbol.buy_trail, Sell_trail=symbol.sell_trail, Switch=symbol.switch, Symbol_status=symbol.status, Can_open=symbol.can_open, Can_average=symbol.can_average, Can_close=symbol.can_close, Can_open_trail=symbol.can_open_trail, Can_average_trail=symbol.can_average_trail, Can_close_trail=symbol.can_close_trail)
-                            new_row = self.account.notifier.tables['symbols'](Name=symbol.name, Drop=symbol.drop, Profit=symbol.profit, K=symbol.k, Buy_trail=symbol.buy_trail, Sell_trail=symbol.sell_trail, Drop_param=symbol.drop_param, Level=symbol.level, Pond=symbol.pond, Switch=symbol.switch, Symbol_status=symbol.status, Can_open=symbol.can_open, Can_average=symbol.can_average, Can_close=symbol.can_close, Can_open_trail=symbol.can_open_trail, Can_average_trail=symbol.can_average_trail, Can_close_trail=symbol.can_close_trail)
-
+                            new_row = master.account.notifier.tables['symbols'](Name=symbol.name, Drop=symbol.drop, Profit=symbol.profit, K=symbol.k, Buy_trail=symbol.buy_trail, Sell_trail=symbol.sell_trail, Drop_param=symbol.drop_param, Level=symbol.level, Pond=symbol.pond, Switch=symbol.switch, Symbol_status=symbol.status, Can_open=symbol.can_open, Can_average=symbol.can_average, Can_close=symbol.can_close, Can_open_trail=symbol.can_open_trail, Can_average_trail=symbol.can_average_trail, Can_close_trail=symbol.can_close_trail)
                             sql_session.add(new_row)
                         sql_session.commit()                    
         
@@ -188,23 +249,23 @@ if __name__ == '__main__':
     
                     # elif texto == 'ADD SYMBOL':
                     elif 'ADD SYMBOL' in texto:
-    
                         add_symbol_data = conexion.recv(4096)
-                        add_symbol_texto = pickle.loads(add_symbol_data)
-                        requests.post(url, data={'chat_id': '-1001802125737', 'text': 'New symbol data received ' + str(add_symbol_texto), 'parse_mode': 'HTML'})
+                        add_symbol_params = pickle.loads(add_symbol_data)
+                        requests.post(url, data={'chat_id': '-1001802125737', 'text': 'Drop: ' + str(add_symbol_params[0]['drop']) + ' Profit: ' + str(add_symbol_params[0]['profit']) + ' K: ' + str(add_symbol_params[0]['k']), 'parse_mode': 'HTML'})
                         
                         with open("master.pickle", "rb") as f:
                             master_back = pickle.load(f)
+                            
                         master.symbol_list = master_back
                         for i in master.symbol_list:
                             i.master = master
                         
-                        master.add_new_symbol(add_symbol_texto)
+                        master.add_new_symbol(add_symbol_params)
     
                         restart_symbols = delete(master.account.notifier.tables['symbols'])
                         sql_session.execute(restart_symbols)
                         for symbol in master.symbol_list:
-                            new_row = master.account.notifier.tables['symbols'](Name=symbol.name, Drop=symbol.drop, Profit=symbol.profit, K=symbol.k, Buy_trail=symbol.buy_trail, Sell_trail=symbol.sell_trail, Switch=symbol.switch, Symbol_status=symbol.status, Can_open=symbol.can_open, Can_average=symbol.can_average, Can_close=symbol.can_close, Can_open_trail=symbol.can_open_trail, Can_average_trail=symbol.can_average_trail, Can_close_trail=symbol.can_close_trail)
+                            new_row = master.account.notifier.tables['symbols'](Name=symbol.name, Drop=symbol.drop, Profit=symbol.profit, K=symbol.k, Buy_trail=symbol.buy_trail, Sell_trail=symbol.sell_trail, Drop_param=symbol.drop_param, Level=symbol.level, Pond=symbol.pond, Switch=symbol.switch, Symbol_status=symbol.status, Can_open=symbol.can_open, Can_average=symbol.can_average, Can_close=symbol.can_close, Can_open_trail=symbol.can_open_trail, Can_average_trail=symbol.can_average_trail, Can_close_trail=symbol.can_close_trail)
                             sql_session.add(new_row)
                         sql_session.commit()      
     

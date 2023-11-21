@@ -2,10 +2,9 @@
 from datetime import datetime
 from bot_symbol_long import Symbol_long
 from bot_symbol_short import Symbol_short
-from bot_database import sql_session
-from sqlalchemy import delete
+from bot_database import sql_session, sql_base, sql_engine
+from sqlalchemy import delete, exc, Column, Float, Integer, String
 import traceback
-from sqlalchemy import exc
 from binance.exceptions import BinanceAPIException
 
 
@@ -54,6 +53,7 @@ class Symbol_combi(object):
         for params in inputs:
             if params['drop'] > 0:
                 symbol = Symbol_long(params, self)
+                self.wr_list[symbol.nick] = {'Long':0, 'Short':0}
             elif params['drop'] < 0:
                 symbol = Symbol_short(params, self)
                 self.wr_list[symbol.nick] = {'Long':0, 'Short':0}
@@ -63,8 +63,17 @@ class Symbol_combi(object):
             except Exception as e:
                 self.account.notifier.register_output('Error', symbol.asset, symbol.side, 'Initial price reading error: ' + str(e))
             
+            if symbol.asset not in self.account.assets:
+                self.account.assets.append(symbol.asset)
+                nueva_tabla = type('NuevaTabla', (sql_base,), {
+                    '__tablename__': symbol.asset,
+                    'id': Column(Integer, primary_key=True),
+                    'Date': Column(String(50)),
+                    'Price': Column(Float)})
+                self.account.notifier.tables[symbol.asset] = nueva_tabla
+                sql_base.metadata.create_all(sql_engine)
+                
             self.account.get_asset_balances(symbol.asset, self.account.amount_precision[symbol.asset])
-            self.account.assets.append(symbol.asset)
             self.symbol_list.append(symbol)
             self.account.notifier.register_output('Info', symbol.asset, symbol.side, 'Symbols added')
             time = datetime(datetime.now().year, datetime.now().month, datetime.now().day, datetime.now().hour, datetime.now().minute, datetime.now().second)

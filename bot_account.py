@@ -60,6 +60,11 @@ class Margin_account():
     
     def get_base_balances(self, asset):
         
+        if asset not in self.balances:
+            self.balances[asset] = 0
+        if asset not in self.loans:
+            self.loans[asset] = 0
+
         try:
             for item in self.client.get_isolated_margin_account()['assets']:
                 if item['baseAsset']['asset'] == asset and item['quoteAsset']['asset'] == self.base_coin:
@@ -117,6 +122,8 @@ class Margin_account():
         
         self.get_asset_balances(symbol.asset, self.amount_precision[symbol.asset])
         self.get_base_balances(symbol.asset)
+        print(self.loans)
+        print(self.balances)
         
         if self.loans[symbol.asset] > 0 and self.balances[symbol.asset] > 0 and coin == 'Asset':
             repay = min(self.balances[symbol.asset], amount)
