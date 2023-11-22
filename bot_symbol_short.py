@@ -130,6 +130,7 @@ class Symbol_short(object):
             sql_session.commit()
         except exc.OperationalError as e:
             print(f"Error de conexión a la base de datos: {e}")
+            self.master.account.notifier.send_error(self.name, f"Error de conexión a la base de datos: {e}")
             sql_session.rollback()
             
         self.last_buy_price = price
@@ -203,6 +204,7 @@ class Symbol_short(object):
             sql_session.commit()
         except exc.OperationalError as e:
             print(f"Error de conexión a la base de datos: {e}")
+            self.master.account.notifier.send_error(self.name, f"Error de conexión a la base de datos: {e}")
             sql_session.rollback()
         
         self.last_buy_price = price
@@ -248,6 +250,7 @@ class Symbol_short(object):
             sql_session.commit()
         except exc.OperationalError as e:
             print(f"Error de conexión a la base de datos: {e}")
+            self.master.account.notifier.send_error(self.name, f"Error de conexión a la base de datos: {e}")
             sql_session.rollback()
         
         # print('#TRANSACTION_CLOSED ' + str(self.name) + '\n' + 'Close Price: ' + str(price) + '\n' + 'Duration: ' + str(self.duration) + '\n' + 'Buy Level: ' + str(self.buy_level) + '\n' + 'Cost: ' + str(round(self.acc,2)) + '$ \n' + 'Profit: ' + str(round(profit*100, 2)) + '% \n' + 'Profit USD: ' + str(round(usd_profit,4)) + ' $\n' + 'Commision: ' + str(self.commission) + '\n' + 'USDT balance: ' + str(round(self.master.account.balances[self.master.account.base_coin], 2)))

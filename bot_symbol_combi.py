@@ -34,6 +34,7 @@ class Symbol_combi(object):
                 symbol.price = float(self.account.client.get_symbol_ticker(symbol=symbol.tic)['price'])
             except Exception as e:
                 self.account.notifier.register_output('Error', symbol.asset, symbol.side, 'Initial price reading error: ' + str(e))
+                self.account.notifier.send_error(symbol.name, 'Initial price reading error: ' + str(e))
             self.account.get_asset_balances(symbol.asset, self.account.amount_precision[symbol.asset])
             assets.append(symbol.asset)
             self.symbol_list.append(symbol)
@@ -62,6 +63,7 @@ class Symbol_combi(object):
                 symbol.price = float(self.account.client.get_symbol_ticker(symbol=symbol.tic)['price'])
             except Exception as e:
                 self.account.notifier.register_output('Error', symbol.asset, symbol.side, 'Initial price reading error: ' + str(e))
+                self.account.notifier.send_error(symbol.name, 'Initial price reading error: ' + str(e))
             
             if symbol.asset not in self.account.assets:
                 self.account.assets.append(symbol.asset)
@@ -72,6 +74,8 @@ class Symbol_combi(object):
                     'Price': Column(Float)})
                 self.account.notifier.tables[symbol.asset] = nueva_tabla
                 sql_base.metadata.create_all(sql_engine)
+                self.account.t_balances[symbol.asset] = 0
+                self.account.t_loans[symbol.asset] = 0
                 
             self.account.get_asset_balances(symbol.asset, self.account.amount_precision[symbol.asset])
             self.symbol_list.append(symbol)
@@ -101,6 +105,10 @@ class Symbol_combi(object):
         self.account.short_acc = short_acc
         self.account.funds = short_acc - long_acc
         
+        for asset in self.account.assets:
+            self.account.t_balances[asset] = 0
+            self.account.t_loans[asset] = 0
+
         base_balance = 0
         base_loan = 0
         for i in self.account.assets:
@@ -141,6 +149,7 @@ class Symbol_combi(object):
             sql_session.commit()
         except exc.OperationalError as e:
             print(f"Error de conexión a la base de datos: {e}")
+            self.account.notifier.send_error('Restarting open_tr and status tables', f"Error de conexión a la base de datos: {e}")
             sql_session.rollback()
         
         restart_symbols = delete(self.account.notifier.tables['symbols'])
@@ -155,6 +164,7 @@ class Symbol_combi(object):
                 price = float(self.account.client.get_symbol_ticker(symbol=symbol.tic)['price'])
             except Exception as e:
                 print('Error reading price', symbol.name)
+                self.account.notifier.send_error(symbol.name, 'Price reading error: ' + str(e))
                 traceback.print_exc()
                 self.account.notifier.register_output('Error', symbol.asset, symbol.side, 'Reading price failed: ' + str(e))
                 price = symbol.price
@@ -208,11 +218,13 @@ class Symbol_combi(object):
                 sql_session.commit()
             except exc.OperationalError as e:
                 print(f"Error de conexión a la base de datos: {e}")
+                self.account.notifier.send_error(symbol.name, f"Error de conexión a la base de datos: {e}")
                 sql_session.rollback()
             
             # print(symbol.name, 'Acc: ', round(symbol.acc, 2), 'DU: ', symbol.buy_level, 'Profit: ', round(symbol.live_profit*100,2), 'Profit $: ', round(symbol.live_profit*symbol.acc, 2), 'Duration: ', symbol.duration, 'Price: ', price)
             
         # print(time, 'SYMBOLS UPDATED')
+        self.account.check_balances()
         self.account.notifier.register_output('Info', 'general', 'general', 'Symbols updated')
         return
 

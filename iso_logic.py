@@ -84,12 +84,16 @@ if __name__ == '__main__':
             except BinanceAPIException as e:
                 print(f"Se produjo un error de la API de Binance: {e}")
                 master.account.notifier.register_output('Error', 'general', 'general', 'Binance API error ' + str(e))
+                master.account.notifier.send_error('General', 'Binance API error ' + str(e))
             except requests.exceptions.ReadTimeout as e:
                 print(f"Error de tiempo de espera en la API de Binance: {e}")
                 master.account.notifier.register_output('Error', 'general', 'general', 'Binance API error ' + str(e))
+                master.account.notifier.send_error('General', 'Binance API error ' + str(e))
             except OperationalError as e:
                 # Captura el error específico de SQLAlchemy
                 print(f"Error de conexión a la base de datos: {e}")
+                master.account.notifier.send_error('General', f"Error de conexión a la base de datos: {e}")
+
             # except Exception as e:
             #     print(f"ERROR NO IDENTIFICADO: {e}")
             time.sleep(30)
@@ -118,6 +122,7 @@ if __name__ == '__main__':
             except Exception as e:
                 print('Error de logic al conectar frontend: ', str(e))
                 requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Error de logic al conectar frontend: ' + str(e), 'parse_mode': 'HTML'})
+                master.account.notifier.send_error('General', 'Error de logic al conectar frontend: ', str(e))
                 # time.sleep(30)
             finally:
                 logic_front_socket.close()
@@ -196,11 +201,6 @@ if __name__ == '__main__':
                         conexion.close()
     
                     elif 'EDIT SYMBOL' in texto:
-                        # edit_symbol_data = conexion.recv(1024)
-                        # edit_symbol_texto = edit_symbol_data.decode('utf-8')
-                        # requests.post(url, data={'chat_id': '-1001802125737', 'text': 'Change: ' + edit_symbol_texto, 'parse_mode': 'HTML'})
-                        # new_params ={'name': symbol_n, 'attribute': param, 'value': new_value}
-
                         edit_symbol_data = conexion.recv(4096)
                         edit_params = pickle.loads(edit_symbol_data)
                         requests.post(url, data={'chat_id': '-1001802125737', 'text': 'Name: ' + edit_params['name'] + ' Attribute: ' + edit_params['attribute'] + ' Value: ' + str(edit_params['value']), 'parse_mode': 'HTML'})
@@ -224,8 +224,6 @@ if __name__ == '__main__':
                         warn = 'Changed completed ' + 'Symbol: ' + selected_symbol.name + 'Param: ' + str(attribute_name) + 'New Value: ' + str(selected_symbol.drop_param)
                         requests.post(url, data={'chat_id': '-1001802125737', 'text': warn, 'parse_mode': 'HTML'})
                         
-                        # with open("master.pickle", "wb") as f:
-                        #     pickle.dump(symbol_list, f)
 
                         master.symbol_list = symbol_list                           
                         for i in master.symbol_list:
@@ -233,9 +231,6 @@ if __name__ == '__main__':
                             i.trading_points()
                             requests.post(url, data={'chat_id': '-1001802125737', 'text': attribute_name + str(i.drop_param), 'parse_mode': 'HTML'})
 
-                            
-                        # warn = 'Changed completed ' + 'Symbol: ' + selected_symbol.name + 'Param: ' + str(attribute_name) + 'New Value: ' + str(selected_symbol.attribute_name)
-                            
                         restart_symbols = delete(master.account.notifier.tables['symbols'])
                         sql_session.execute(restart_symbols)
                         for symbol in master.symbol_list:
@@ -247,7 +242,6 @@ if __name__ == '__main__':
                         requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Engine started (edit)', 'parse_mode': 'HTML'})
                         conexion.close()
     
-                    # elif texto == 'ADD SYMBOL':
                     elif 'ADD SYMBOL' in texto:
                         add_symbol_data = conexion.recv(4096)
                         add_symbol_params = pickle.loads(add_symbol_data)
@@ -281,97 +275,3 @@ if __name__ == '__main__':
                 
                 finally:
                     conexion.close()
-
-
-            # except Exception as e:
-            #     requests.post(url, data={'chat_id': '-1001802125737', 'text':  'ERROR: Master not received: ' + str(e), 'parse_mode': 'HTML'})
-            #     master.engine_working = True
-            #     requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Engine restarted', 'parse_mode': 'HTML'})
-
-                
-                
-                # elif texto == 'Hey logic, sigue con lo tuyo':
-                
-                    # restart_symbols = delete(master.account.notifier.tables['symbols'])
-                    # sql_session.execute(restart_symbols)
-                    
-                    # with open("master.pickle", "rb") as f:
-                    #     master_back = pickle.load(f)
-                    
-                    # master.symbol_list = master_back
-                    # for i in master.symbol_list:
-                    #     i.master = master
-                    #     i.trading_points()
-                    
-                    # for symbol in master.symbol_list:
-                    #     new_row = master.account.notifier.tables['symbols'](Name=symbol.name, Drop=symbol.drop, Profit=symbol.profit, K=symbol.k, Buy_trail=symbol.buy_trail, Sell_trail=symbol.sell_trail, Switch=symbol.switch, Symbol_status=symbol.status, Can_open=symbol.can_open, Can_average=symbol.can_average, Can_close=symbol.can_close, Can_open_trail=symbol.can_open_trail, Can_average_trail=symbol.can_average_trail, Can_close_trail=symbol.can_close_trail)
-                    #     sql_session.add(new_row)
-                    
-                    # sql_session.commit()
-                
-                    # requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Master received: ' + str(texto), 'parse_mode': 'HTML'})
-                    # conexion.close()
-                    # front_server.close()
-                    # if conexion._closed and front_server._closed:
-                    #     requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Logic socket closed', 'parse_mode': 'HTML'})
-                    # else:
-                    #     requests.post(url, data={'chat_id': '-1001802125737', 'text':  'ERROR: Logic socket not closed', 'parse_mode': 'HTML'})
-    
-                    # master.engine_working = True
-                    # requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Engine started', 'parse_mode': 'HTML'})
-            
-            
-            # try:
-            #     # Crear servidor y esperar a que el frontend envíe instrucciones
-            #     front_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            #     front_server.bind(('localhost', 5558))
-            #     front_server.listen(1)
-            #     front_server.settimeout(5)
-            #     conexion, direccion = front_server.accept()
-            #     data = conexion.recv(4096)
-            #     received_inputs = pickle.loads(data)
-
-            #     with open("master.pickle", "rb") as f:
-            #         master_back = pickle.load(f)
-
-            #     master.symbol_list = master_back
-            #     for i in master.symbol_list:
-            #         i.master = master
-
-            #     master.add_new_symbol(received_inputs)
-
-            #     restart_symbols = delete(master.account.notifier.tables['symbols'])
-            #     sql_session.execute(restart_symbols)
-
-            #     for symbol in master.symbol_list:
-            #         new_row = master.account.notifier.tables['symbols'](Name=symbol.name, Drop=symbol.drop, Profit=symbol.profit, K=symbol.k, Buy_trail=symbol.buy_trail, Sell_trail=symbol.sell_trail, Switch=symbol.switch, Symbol_status=symbol.status, Can_open=symbol.can_open, Can_average=symbol.can_average, Can_close=symbol.can_close, Can_open_trail=symbol.can_open_trail, Can_average_trail=symbol.can_average_trail, Can_close_trail=symbol.can_close_trail)
-            #         sql_session.add(new_row)
-                
-            #     sql_session.commit()
-
-            #     requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Symbol added: ' + str(received_inputs), 'parse_mode': 'HTML'})
-            #     master.engine_working = True
-            #     requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Engine started', 'parse_mode': 'HTML'})
-
-            #     conexion.close()
-            #     front_server.close()
-
-            #     if conexion._closed and front_server._closed:
-            #         pass
-            #     else:
-            #         requests.post(url, data={'chat_id': '-1001802125737', 'text':  'ERROR: Front socket not closed', 'parse_mode': 'HTML'})
-
-            # except socket.error as e:
-            #     # print('Error de socket: ', str(e))
-            #     # requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Error de socket: ' + str(e), 'parse_mode': 'HTML'})
-            #     pass
-
-            # except socket.timeout:
-            #     pass
-
-            # except Exception as e:
-            #     requests.post(url, data={'chat_id': '-1001802125737', 'text':  'ERROR: Master not received: ' + str(e), 'parse_mode': 'HTML'})
-            #     master.engine_working = True
-            #     requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Engine restarted', 'parse_mode': 'HTML'})
-
-

@@ -15,7 +15,7 @@ class Notifier():
         self.token = '6332743294:AAFKcqzyfKzXAPSGhR6eTKLPMyx0tpCzeA4'
         # self.id_bot_aita = '-1001517241898'
         self.id_bot = '-1002027509507'
-
+        self.id_error_bot = '-1002041194998'
         self.tables = {}
         self.total_equity = 0
         self.gorka_equity = 2000
@@ -158,6 +158,18 @@ class Notifier():
         except Exception as e:
             print('Open Order Post Error' + str(e))
         
+        return
+    
+    def send_error(self, symbol, error):
+        
+        message = ('#ERROR' + '\n' + 
+                   'Account: ISOLATED \n' + 
+                   'Symbol: ' + str(symbol) + '\n' + 
+                   'Error: ' + error)
+        try:  
+            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_error_bot, 'text': message, 'parse_mode': 'HTML'})
+        except Exception as e:
+            print('Send Error Post Error' + str(e))
         return
     
 __all__ = ['Notifier']

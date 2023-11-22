@@ -27,6 +27,8 @@ class Margin_account():
         
         self.balances = {}
         self.loans = {}
+        self.t_balances = {self.base_coin:0}
+        self.t_loans = {self.base_coin:0}
         
         self.client = Client('HxC4DjBJjOv6lqiDdgnF1c7SW3SYYKnmvRyg1KAW4UY4oa5Ndbz3yAi7Z4TtXky9', 'RwwVEqxVzRmtcxf8sAvMcu6kwz6OxEtxsbcTBDTjgHrsmzqgpCjFcBq0aeW93rEU')
         self.price_precision = {'BTC':2, 'ETH':2, 'BNB':1, 'XRP':4, 'ADA':4, 'LTC':2, 'SOL':2, 'ATOM':3, 'BCH':1, 
@@ -56,6 +58,7 @@ class Margin_account():
             print(f"Get initial base balance error: {e}")
             traceback.print_exc()
             self.notifier.register_output('Error', asset, 'general', 'Get initial base balance error: ' + str(e))
+            self.notifier.send_error(asset, f"Get initial base balance error: {e}")
         return base_balance, base_loan
     
     def get_base_balances(self, asset):
@@ -74,6 +77,8 @@ class Margin_account():
             print(f"Get base balance error: {e}")
             traceback.print_exc()
             self.notifier.register_output('Error', asset, 'general', 'Get base balance error: ' + str(e))
+            self.notifier.send_error(asset, f"Get base balance error: {e}")
+
         return
     
     def get_asset_balances(self, asset, precision):
@@ -87,6 +92,8 @@ class Margin_account():
             print(f"Get asset balance error: {e}")
             traceback.print_exc()
             self.notifier.register_output('Error', asset, 'general', 'Get asset balance error: ' + str(e))
+            self.notifier.send_error(asset, f"Get asset balance error: {e}")
+
         return
     
     def create_loan(self, order_qty, precision, asset, symbol):
@@ -109,6 +116,7 @@ class Margin_account():
                 print(f"Loan creation failed: {e}")
                 traceback.print_exc()
                 self.notifier.register_output('Error', symbol.asset, symbol.side, 'Loan creation failed: ' + str(e))
+                self.notifier.send_error(symbol.name, f"Loan creation failed: {e}")
             print('Loan Creation Filled', asset, 'qty: ', loan_qty)
             self.notifier.register_output('Action', symbol.asset, symbol.side, 'Loan Creation')
         else:
@@ -119,7 +127,6 @@ class Margin_account():
     
     def repay_loan(self, symbol, amount, price, coin):
 
-        
         self.get_asset_balances(symbol.asset, self.amount_precision[symbol.asset])
         self.get_base_balances(symbol.asset)
         print(self.loans)
@@ -132,6 +139,8 @@ class Margin_account():
             self.client.repay_margin_loan(asset=symbol.asset, amount=loan_qty, symbol=symbol.tic, isIsolated=True)
             print('Loan Repay Filled', self.base_coin)     
             self.notifier.register_output('Action', symbol.asset, symbol.side, 'Loan Repaid')
+            self.t_balances[symbol.asset] = self.t_balances[symbol.asset] - loan_qty
+            self.t_loans[symbol.asset] = self.t_loans[symbol.asset] - loan_qty
                    
         if self.loans[self.base_coin] > 0 and self.balances[self.base_coin] > 0 and coin == 'Base':
             repay = min(self.balances[self.base_coin], amount*price)
@@ -140,6 +149,8 @@ class Margin_account():
             self.client.repay_margin_loan(asset=self.base_coin, amount=loan_qty, symbol=symbol.tic, isIsolated=True)
             print('Loan Repay Filled', self.base_coin)     
             self.notifier.register_output('Action', symbol.asset, symbol.side, 'Loan Repaid')
+            self.t_balances[self.base_coin] = self.t_balances[self.base_coin] - loan_qty
+            self.t_loans[self.base_coin] = self.t_loans[self.base_coin] - loan_qty
             
         self.extra_repay(symbol.asset)
 
@@ -152,16 +163,39 @@ class Margin_account():
                 if item['baseAsset']['asset'] == asset and item['quoteAsset']['asset'] == self.base_coin:
                     if float(item['baseAsset']['free']) > 0 and float(item['baseAsset']['borrowed']) > 0:
                         self.client.repay_margin_loan(asset=asset, amount=float(item['baseAsset']['free']), symbol=asset+self.base_coin, isIsolated=True)
+                        self.t_balances[asset] = self.t_balances[asset] - float(item['baseAsset']['free'])
+                        self.t_loans[asset] = self.t_loans[asset] - float(item['baseAsset']['free'])
                     if float(item['quoteAsset']['free']) > 0 and float(item['quoteAsset']['borrowed']) > 0:
                         self.client.repay_margin_loan(asset=self.base_coin, amount=float(item['quoteAsset']['free']), symbol=asset+self.base_coin, isIsolated=True)        
                         self.notifier.register_output('Info', asset, 'general', 'Extra loan repay: ' + asset)
+                        self.t_balances[self.base_coin] = self.t_balances[self.base_coin] - float(item['quoteAsset']['free'])
+                        self.t_loans[self.base_coin] = self.t_loans[self.base_coin] - float(item['quoteAsset']['free'])
 
         except Exception as e:
             print(f"Extra repay failed: {e}")
             traceback.print_exc()
             self.notifier.register_output('Error', asset, 'general', 'Extra loan repay failed: ' + str(e))
+            self.notifier.send_error(asset, f"Extra repay failed: {e}")
             
         return
+    
+    def check_balances(self):
+        
+        for asset in self.assets:
+            self.get_asset_balances(asset, self.amount_precision[asset])
+            self.get_base_balances(asset)
+            # real = self.balances[asset]
+            # teorethical = self.t_balances[asset]
+            try:
+                price = float(self.account.client.get_symbol_ticker(symbol=asset+self.base_coin)['price'])
+            except Exception as e:
+                self.notifier.send_error(asset, 'Price reading error: ' + str(e))
+            
+            diff = (self.balances[asset]/self.t_balances[asset] - 1)*100
+            diff_usd = (self.balances[asset] - self.t_balances[asset]) * price
+            
+            if abs(diff) > 5 and abs(diff_usd) > 10:
+                self.notifier.send_error(asset, 'Balances unmached: REAL: ' + str(self.balances[asset]) + ' TEORETHICAL: ' + str(self.t_balances[asset]) + ' DIFF USDT: ' + str(diff_usd))
     
     def check_open_orders(self, time):
         
@@ -233,6 +267,7 @@ class Margin_account():
                     sql_session.commit()
                 except exc.OperationalError as e:
                     print(f"Error de conexión a la base de datos: {e}")
+                    self.notifier.send_error(symbol.name, f"Error de conexión a la base de datos: {e}")
                     sql_session.rollback()
                 symbol.timer = symbol.timer + 1
                 self.notifier.register_output('Action', symbol.asset, symbol.side, 'Order Partially Filled ' + str(open_order['orderId']))
@@ -273,6 +308,7 @@ class Margin_account():
                     sql_session.commit()
                 except exc.OperationalError as e:
                     print(f"Error de conexión a la base de datos: {e}")
+                    self.notifier.send_error(symbol.name, f"Error de conexión a la base de datos: {e}")
                     sql_session.rollback()  # Revertir cambios pendientes, si los hay                
                 symbol.timer = symbol.timer + 1
 
@@ -315,12 +351,18 @@ class Margin_account():
             self.create_loan(loan, 2, self.base_coin, symbol)       
             self.get_asset_balances(symbol.asset, self.amount_precision[symbol.asset])
             self.get_base_balances(symbol.asset)
+            self.t_balances[self.base_coin] = self.t_balances[self.base_coin] + loan
+            self.t_loans[self.base_coin] = self.t_loans[self.base_coin] + loan
         
         if self.balances[self.base_coin] >= order_qty * price:
             time = datetime(datetime.now().year, datetime.now().month, datetime.now().day, datetime.now().hour, datetime.now().minute, datetime.now().second)
             try:
                 buy_open_order = self.client.create_margin_order(symbol=symbol.tic, side='BUY', type='LIMIT', timeInForce='GTC', quantity=order_qty, price=order_price, isIsolated='TRUE')
                 print('Buy Order Placed', symbol.name, 'price: ', round(price,2), 'amount: ', order_qty)
+                
+                self.t_balances[symbol.asset] = self.t_balances[symbol.asset] + order_qty
+                self.t_balances[self.base_coin] = self.t_balances[self.base_coin] - order_qty*order_price
+
                 # self.notifier.send_order_placed(price, order_qty, symbol, action, buy_open_order['orderId'], self.balances[self.base_coin], self.balances[symbol.asset])
                 self.open_order_list.append([buy_open_order, symbol, action])
                 filled = 0
@@ -332,6 +374,7 @@ class Margin_account():
                     sql_session.commit()
                 except exc.OperationalError as e:
                     print(f"Error de conexión a la base de datos: {e}")
+                    self.notifier.send_error(symbol.name, f"Error de conexión a la base de datos: {e}")
                     sql_session.rollback()  # Revertir cambios pendientes, si los hay
                 
                 if action == 'OPEN': 
@@ -343,6 +386,7 @@ class Margin_account():
             except Exception as e:
                 traceback.print_exc()
                 self.notifier.register_output('Error', symbol.asset, symbol.side, 'Buy Order Creation Failed: ' + str(e))
+                self.notifier.send_error(symbol.name, f"Buy Order Creation Failed: {e}")
         return
     
     def create_sell_order(self, symbol, buy_amount, price, action):
@@ -358,12 +402,16 @@ class Margin_account():
             self.create_loan(loan, self.amount_precision[symbol.asset], symbol.asset, symbol)
             self.get_asset_balances(symbol.asset, self.amount_precision[symbol.asset])
             self.get_base_balances(symbol.asset)
+            self.t_balances[symbol.asset] = self.t_balances[symbol.asset] + loan
+            self.t_loans[symbol.asset] = self.t_loans[symbol.asset] + loan
         
         if self.balances[symbol.asset] >= order_qty:
             time = datetime(datetime.now().year, datetime.now().month, datetime.now().day, datetime.now().hour, datetime.now().minute, datetime.now().second)
             try:
                 sell_open_order = self.client.create_margin_order(symbol=symbol.tic, side='SELL', type='LIMIT', timeInForce='GTC', quantity=order_qty, price=order_price, isIsolated='TRUE')
                 print('Sell Order Placed', symbol.name, 'price: ', round(price,2), 'amount: ', order_qty)
+                self.t_balances[symbol.asset] = self.t_balances[symbol.asset] - order_qty
+                self.t_balances[self.base_coin] = self.t_balances[self.base_coin] + order_qty*order_price
                 # self.notifier.send_order_placed(price, order_qty, symbol, action, sell_open_order['orderId'], self.balances[self.base_coin], self.balances[symbol.asset])
                 self.open_order_list.append([sell_open_order, symbol, action])
                 filled = 0
@@ -375,6 +423,7 @@ class Margin_account():
                     sql_session.commit()
                 except exc.OperationalError as e:
                     print(f"Error de conexión a la base de datos: {e}")
+                    self.notifier.send_error(symbol.name, f"Error de conexión a la base de datos: {e}")
                     sql_session.rollback()  # Revertir cambios pendientes, si los hay
                 
                 if action == 'OPEN':
@@ -422,12 +471,14 @@ class Margin_account():
                 sql_session.commit()
             except exc.OperationalError as e:
                 print(f"Error de conexión a la base de datos: {e}")
+                self.notifier.send_error('NAV Commit', f"Error de conexión a la base de datos: {e}")
                 sql_session.rollback()  # Revertir cambios pendientes, si los hay
             self.notifier.register_output('Info', 'general', 'general', 'Nav calculated')
             
         except Exception as e:
             print(f"Nav calculating error: {e}")
             self.notifier.register_output('Error', 'general', 'general', 'Nav calculating error: ' + str(e))
+            self.notifier.send_error('NAV', f"Nav calculating error: {e}")
         return       
     
     
