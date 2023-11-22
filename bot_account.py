@@ -7,6 +7,10 @@ from bot_database import sql_session
 import traceback
 from sqlalchemy import exc
 
+# sell_open_order = client.create_margin_order(symbol='BTCUSDT', side='BUY', type='MARKET', quantity=0.0005, sideEffectType='AUTO_REPAY', isIsolated='TRUE')
+
+# sell_open_order = client.create_margin_order(symbol='BTCUSDT', side='SELL', type='MARKET', quantity=0.0005, sideEffectType='MARGIN_BUY', isIsolated='TRUE')
+
 class Margin_account():
     
     def __init__(self, notifier) -> None:
