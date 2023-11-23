@@ -76,6 +76,8 @@ class Symbol_combi(object):
                 sql_base.metadata.create_all(sql_engine)
                 self.account.t_balances[symbol.asset] = 0
                 self.account.t_loans[symbol.asset] = 0
+                self.account.balances[symbol.asset] = 0
+                self.account.loans[symbol.asset] = 0
                 
             self.account.get_asset_balances(symbol.asset, self.account.amount_precision[symbol.asset])
             self.symbol_list.append(symbol)

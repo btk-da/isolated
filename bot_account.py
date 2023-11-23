@@ -7,8 +7,8 @@ from bot_database import sql_session
 import traceback
 from sqlalchemy import exc
 
-# sell_open_order = client.create_margin_order(symbol='BTCUSDT', side='BUY', type='MARKET', quantity=0.0005, sideEffectType='AUTO_REPAY', isIsolated='TRUE')
-
+# order = client.create_margin_order(symbol='BTCUSDT', isIsolated='TRUE', side='BUY', type='STOP_LOSS_LIMIT', quantity=0.0005,
+#                                    price=36600, stopPrice=36600, sideEffectType='AUTO_REPAY', timeInForce='GTC')
 # sell_open_order = client.create_margin_order(symbol='BTCUSDT', side='SELL', type='MARKET', quantity=0.0005, sideEffectType='MARGIN_BUY', isIsolated='TRUE')
 
 class Margin_account():
@@ -67,11 +67,6 @@ class Margin_account():
     
     def get_base_balances(self, asset):
         
-        if asset not in self.balances:
-            self.balances[asset] = 0
-        if asset not in self.loans:
-            self.loans[asset] = 0
-
         try:
             for item in self.client.get_isolated_margin_account()['assets']:
                 if item['baseAsset']['asset'] == asset and item['quoteAsset']['asset'] == self.base_coin:
@@ -201,7 +196,7 @@ class Margin_account():
             if abs(diff) > 5 and abs(diff_usd) > 10:
                 self.notifier.send_error(asset, 'Balances unmached: REAL: ' + str(self.balances[asset]) + ' TEORETHICAL: ' + str(self.t_balances[asset]) + ' DIFF USDT: ' + str(diff_usd))
     
-    def check_open_orders(self, time):
+    def check_open_orders_0(self, time):
         
         #try:
         for i in self.open_order_list:
@@ -342,7 +337,7 @@ class Margin_account():
 
         return
     
-    def create_buy_order(self, symbol, buy_amount, price, action):
+    def create_buy_order_0(self, symbol, buy_amount, price, action):
         
         order_qty = self.round_decimals_up(max(buy_amount, self.initial_amount/price), self.amount_precision[symbol.asset])
         order_price = round(price, self.price_precision[symbol.asset])
@@ -393,7 +388,7 @@ class Margin_account():
                 self.notifier.send_error(symbol.name, f"Buy Order Creation Failed: {e}")
         return
     
-    def create_sell_order(self, symbol, buy_amount, price, action):
+    def create_sell_order_0(self, symbol, buy_amount, price, action):
         
         order_qty = self.round_decimals_down(max(buy_amount, self.initial_amount/price), self.amount_precision[symbol.asset])
         order_price = round(price, self.price_precision[symbol.asset])
@@ -484,6 +479,241 @@ class Margin_account():
             self.notifier.register_output('Error', 'general', 'general', 'Nav calculating error: ' + str(e))
             self.notifier.send_error('NAV', f"Nav calculating error: {e}")
         return       
+    
+    def check_funds(self, buy_amount, side, price):
+        
+        if side == 'BUY':
+            if self.funds - buy_amount < -self.max_leverage_funds or self.long_acc + buy_amount > self.max_leverage_funds:
+                free_funds = self.max_leverage_funds - self.long_acc
+                if free_funds > 15:
+                    output_amount = free_funds
+                else:
+                    output_amount = 0
+            else:
+                output_amount = buy_amount
+        else:
+            if self.funds + buy_amount > self.max_leverage_funds or self.short_acc + buy_amount > self.max_leverage_funds:
+                free_funds = self.max_leverage_funds - self.short_acc
+                if free_funds > 15:
+                    output_amount = free_funds
+                else:
+                    output_amount = 0
+            else:
+                output_amount = buy_amount
+            
+        return output_amount/price
+    
+    def create_buy_order(self, symbol, buy_amount_0, price, action):
+        
+        buy_amount = self.check_funds(buy_amount_0*price, 'BUY', price)
+        
+        if buy_amount > 0:
+            order_qty = self.round_decimals_up(max(buy_amount, self.initial_amount/price), self.amount_precision[symbol.asset])
+            order_price = round(price, self.price_precision[symbol.asset])
+    
+            try:
+                self.get_asset_balances(symbol.asset, self.amount_precision[symbol.asset])
+    
+                if self.loans[symbol.asset] > 0:
+                    buy_open_order = self.client.create_margin_order(symbol=symbol.tic, side='BUY', type='STOP_LOSS_LIMIT', quantity=order_qty, price=order_price, stopPrice=order_price, sideEffectType='AUTO_REPAY', timeInForce='GTC', isIsolated='TRUE')
+                else:
+                    buy_open_order = self.client.create_margin_order(symbol=symbol.tic, side='BUY', type='STOP_LOSS_LIMIT', quantity=order_qty, price=order_price, stopPrice=order_price, sideEffectType='MARGIN_BUY', timeInForce='GTC', isIsolated='TRUE')
+                
+                buy_open_order['action'] = action
+                symbol.open_order_id = buy_open_order
+    
+                self.t_balances[symbol.asset] = self.t_balances[symbol.asset] + order_qty
+                self.t_balances[self.base_coin] = self.t_balances[self.base_coin] - order_qty*order_price
+                check = True
+    
+            except Exception as e:
+                self.notifier.register_output('Error', symbol.asset, symbol.side, 'Buy Order Creation Failed: ' + str(e))
+                self.notifier.send_error(symbol.name, f"Buy Order Creation Failed: {e}")
+                check = False
+        else:
+            check = True
+
+        return check
+    
+    def create_sell_order(self, symbol, buy_amount_0, price, action):
+        
+        buy_amount = self.check_funds(buy_amount_0*price, 'SELL', price)
+        
+        if buy_amount > 0:
+            order_qty = self.round_decimals_down(max(buy_amount, self.initial_amount/price), self.amount_precision[symbol.asset])
+            order_price = round(price, self.price_precision[symbol.asset])
+    
+            try:
+                self.get_base_balances(symbol.asset)
+                
+                if self.loans[self.base_coin] > 0:
+                    sell_open_order = self.client.create_margin_order(symbol=symbol.tic, side='SELL', type='STOP_LOSS_LIMIT', quantity=order_qty, price=order_price, stopPrice=order_price, sideEffectType='AUTO_REPAY', timeInForce='GTC', isIsolated='TRUE')
+                else:
+                    sell_open_order = self.client.create_margin_order(symbol=symbol.tic, side='SELL', type='STOP_LOSS_LIMIT', quantity=order_qty, price=order_price, stopPrice=order_price, sideEffectType='MARGIN_BUY', timeInForce='GTC', isIsolated='TRUE')
+    
+                sell_open_order['action'] = action
+                symbol.open_order_id = sell_open_order
+    
+                self.t_balances[symbol.asset] = self.t_balances[symbol.asset] - order_qty
+                self.t_balances[self.base_coin] = self.t_balances[self.base_coin] + order_qty*order_price
+                check = True
+
+            except Exception as e:
+                self.notifier.register_output('Error', symbol.asset, symbol.side, 'Sell Order Creation Failed: ' + str(e))
+                self.notifier.send_error(symbol.name, f"Sell Order Creation Failed: {e}")
+                check = False
+        else:
+            check = False
+
+        return check
+    
+    def check_partial_order(self, symbol):
+        
+        order = symbol.open_order_id        
+        open_order = self.client.get_margin_order(symbol=order['symbol'], orderId=order['orderId'], isIsolated='TRUE')
+        
+        executed_amount, executed_price, executed_commission = np.array([]), np.array([]), np.array([])
+        for trade in self.client.get_margin_trades(symbol=order['symbol'], isIsolated=True):
+            if trade['orderId'] == order['orderId']:
+                executed_amount = np.append(executed_amount, [float(trade['qty'])])
+                executed_price = np.append(executed_price, [float(trade['price'])])
+                if trade['commissionAsset'] == self.base_coin:
+                    comision = float(trade['commission'])
+                    executed_commission = np.append(executed_commission, [comision])
+                    symbol.commission = symbol.commission + comision
+                else:
+                    try:
+                        asset_price = float(self.client.get_symbol_ticker(symbol=trade['commissionAsset']+self.base_coin)['price'])
+                        comision = float(trade['commission']) * asset_price
+                        executed_commission = np.append(executed_commission, [comision])
+                        symbol.commission = symbol.commission + comision
+                    except Exception as e:
+                        self.account.notifier.send_error(symbol.name, 'Check orded, price reading error: ' + str(e))
+
+        total_amount = sum(executed_amount)
+        average_price = np.dot(executed_price, executed_amount)/total_amount
+        
+        self.notifier.register_output('Action', symbol.asset, symbol.side, order['action'] + ' Order Partially Filled ' + str(open_order['orderId']))
+                
+        symbol.open_amount_list = np.append(symbol.open_amount_list, [total_amount*average_price])
+        symbol.acc = np.sum([symbol.open_amount_list])
+        symbol.open_asset_amount_list = np.append(symbol.open_asset_amount_list, [total_amount])
+        symbol.asset_acc = np.sum([symbol.open_asset_amount_list])
+        symbol.open_price_list = np.append(symbol.open_price_list, [average_price])
+        symbol.asset_average_price = np.dot(symbol.open_price_list, symbol.open_asset_amount_list)/symbol.asset_acc
+
+        return total_amount, average_price
+
+    def check_filled_order(self, symbol):
+        
+        order = symbol.open_order_id        
+        open_order = self.client.get_margin_order(symbol=order['symbol'], orderId=order['orderId'], isIsolated='TRUE')
+        
+        executed_amount, executed_price, executed_commission = np.array([]), np.array([]), np.array([])
+        for trade in self.client.get_margin_trades(symbol=order['symbol'], isIsolated=True):
+            if trade['orderId'] == order['orderId']:
+                executed_amount = np.append(executed_amount, [float(trade['qty'])])
+                executed_price = np.append(executed_price, [float(trade['price'])])
+                date0 = str(trade['time'])[:-3]
+                date = datetime.fromtimestamp(int(date0))
+                if trade['commissionAsset'] == self.base_coin:
+                    comision = float(trade['commission'])
+                    executed_commission = np.append(executed_commission, [comision])
+                    symbol.commission = symbol.commission + comision
+                else:
+                    try:
+                        asset_price = float(self.client.get_symbol_ticker(symbol=trade['commissionAsset']+self.base_coin)['price'])
+                        comision = float(trade['commission']) * asset_price
+                        executed_commission = np.append(executed_commission, [comision])
+                        symbol.commission = symbol.commission + comision
+                    except Exception as e:
+                        self.account.notifier.send_error(symbol.name, 'Check orded, price reading error: ' + str(e))
+
+        total_amount = sum(executed_amount)
+        average_price = np.dot(executed_price, executed_amount)/total_amount
+        self.notifier.register_output('Action', symbol.asset, symbol.side, order['action'] + ' Order Filled ' + str(open_order['orderId']))
+        symbol.open_order_id = []
+
+        if order['action'] == 'OPEN':
+            symbol.open_order(date, average_price, total_amount, executed_commission)
+        elif order['action'] == 'AVERAGE':
+            symbol.average_order(date, average_price, total_amount, executed_commission)
+        elif order['action'] == 'CLOSE':
+            symbol.close_order(date, average_price, total_amount, executed_commission)
+                
+        # open_order = 
+        # {'symbol': 'BTCUSDT',
+        #  'orderId': 23395654921,
+        #  'clientOrderId': 'TqLDe8galJBtUnuS1UwxtM',
+        #  'transactTime': 1700737658423,
+        #  'type': 'STOP_LOSS_LIMIT',
+        #  'side': 'BUY',
+        #  'isIsolated': True}
+        
+        # get_margin_order = 
+        # {'symbol': 'BTCUSDT',
+        #  'orderId': 23395654921,
+        #  'clientOrderId': 'TqLDe8galJBtUnuS1UwxtM',
+        #  'price': '37430',
+        #  'origQty': '0.0005',
+        #  'executedQty': '0.0005',
+        #  'cummulativeQuoteQty': '18.715',
+        #  'status': 'FILLED',
+        #  'timeInForce': 'GTC',
+        #  'type': 'STOP_LOSS_LIMIT',
+        #  'side': 'BUY',
+        #  'stopPrice': '37430',
+        #  'icebergQty': '0',
+        #  'time': 1700737658423,
+        #  'updateTime': 1700737759800,
+        #  'isWorking': True,
+        #  'accountId': 218557485,
+        #  'isIsolated': True,
+        #  'selfTradePreventionMode': 'EXPIRE_MAKER'}
+        
+        # get_trade = 
+        # {'symbol': 'BTCUSDT',
+        #  'id': 3292583813,
+        #  'orderId': 23395654921,
+        #  'price': '37430',
+        #  'qty': '0.0005',
+        #  'quoteQty': '18.715',
+        #  'commission': '0.0000005',
+        #  'commissionAsset': 'BTC',
+        #  'time': 1700737759800,
+        #  'isBuyer': True,
+        #  'isMaker': True,
+        #  'isBestMatch': True,
+        #  'isIsolated': True}
+        
+        # elif open_order['status'] == 'PARTIALLY_FILLED':
+        #     executed_amount, executed_price, executed_commission = np.array([]), np.array([]), np.array([])
+        #     # executed_amount, notional_amount, price = np.array([]), np.array([]), np.array([])
+        #     for trade in self.client.get_margin_trades(symbol=order['symbol'], isIsolated=True):
+        #         if trade['orderId'] == order['orderId']:
+        #             executed_amount = np.append(executed_amount, [float(trade['qty'])])
+        #             executed_price = np.append(executed_price, [float(trade['price'])])
+        #             date0 = str(trade['time'])[:-3]
+        #             date = datetime.fromtimestamp(int(date0))
+        #             if trade['commissionAsset'] == self.base_coin:
+        #                 comision = float(trade['commission'])
+        #                 executed_commission = np.append(executed_commission, [comision])
+        #                 symbol.commission = symbol.commission + comision
+        #             else:
+        #                 try:
+        #                     asset_price = float(self.client.get_symbol_ticker(symbol=trade['commissionAsset']+self.base_coin)['price'])
+        #                     comision = float(trade['commission']) * asset_price
+        #                     executed_commission = np.append(executed_commission, [comision])
+        #                     symbol.commission = symbol.commission + comision
+        #                 except Exception as e:
+        #                     self.account.notifier.send_error(symbol.name, 'Check orded, price reading error: ' + str(e))
+                        
+        #     total_amount = sum(executed_amount)
+        #     average_price = np.dot(executed_price, executed_amount)/total_amount
+        #     self.notifier.register_output('Action', symbol.asset, symbol.side, order['action'] + ' Order Partially Filled ' + str(open_order['orderId']))
+        #     symbol.open_order_id = []
+            
+        return
     
     
 __all__ = ['Margin_account']

@@ -25,7 +25,6 @@ class Symbol_long(object):
 
         self.switch = True
         self.status = False
-        #self.can_open = True
         self.can_open = False
         self.can_average = False
         self.can_close = False
@@ -46,19 +45,15 @@ class Symbol_long(object):
         self.buy_amount = 0
         self.average_point = 0.0000000001
         self.close_point = 1000000000
-        self.average_price = 0
+        # self.average_price = 0
         self.buy_level = 0
         self.price = []
         self.live_profit = 0
-        self.buy_trail_point = 0
-        self.sell_trail_point = 0
-        self.base_buy_trail_min = 0
-        self.base_sell_trail_max = 0
-        # self.base_buy_trail_list = []
-        # self.base_sell_trail_list = []
-        self.base_open_trail_list = []
-        self.base_average_trail_list = []
-        self.base_close_trail_list = []
+        
+        self.base_open_trail = 0
+        self.base_average_trail = 0
+        self.base_close_trail = 0
+        
         self.interp_range = np.array(np.arange(0,50),dtype='float64')
         self.buy_distribution = np.cumsum(self.k**np.array(np.arange(0,50)) * self.master.account.initial_amount).astype('float64')
         self.drop_limit = 10
@@ -68,6 +63,8 @@ class Symbol_long(object):
         self.timer = 0
         self.commission = 0
         self.order_id = 0
+
+        self.open_order_id = []
         
         self.last_buy_price = []
         
@@ -80,47 +77,43 @@ class Symbol_long(object):
         
     def open_trailing(self, time, price):
         
-        # Checkear si el precio actual es menor que base_buy_trail_min, en caso afirmativo:
-        # cambiar base_buy_trail_list por open trail list
+        if price < self.base_open_trail:
+            self.base_open_trail = price
+            self.open_trail_point = self.base_open_trail*(1 + self.buy_trail/100)
 
-        if price < self.base_open_trail_min:
-            self.base_open_trail_min = price
-            self.open_trail_point = self.base_open_trail_min*(1 + self.buy_trail/100)
+            open_order = self.master.account.client.get_margin_order(symbol=self.open_order_id['symbol'], orderId=self.open_order_id['orderId'], isIsolated='TRUE')
 
-            # # Cancelar orden stop loss limit
-            # # En el caso de que esté partially filled, incluir la parte que se ha llenado en la operativa, recalculando el precio medio:
-            # # Abrir una nueva orden al nuevo precio open_trail_point, descontando la parte que se ha llenado
-            
-            # # En el caso de que esté new:
-            # # Abrir una nueva orden al nuevo precio open_trail_point
-            buy_amount = np.interp(0, self.interp_range, self.buy_distribution)
-            self.master.account.create_buy_order(self, buy_amount/self.open_trail_point, self.open_trail_point, 'OPEN')
+            if open_order['status'] == 'FILLED':
+                self.master.account.check_filled_order(self)
 
+            elif open_order['status'] == 'NEW':
+                self.master.account.client.cancel_margin_order(symbol=self.tic, orderId=open_order['orderId'], isIsolated='TRUE')
+                self.open_order_id = []
+                buy_amount = np.interp(0, self.interp_range, self.buy_distribution)
+                check = self.master.account.create_buy_order(self, buy_amount/self.open_trail_point, self.open_trail_point, 'OPEN')
 
-        # # OOOOOOLD
-        # self.base_buy_trail_list.append(price)
-        # self.base_buy_trail_min = min(self.base_buy_trail_list)
-        # self.buy_trail_point = self.base_buy_trail_min*(1 + self.buy_trail/100)
+            elif open_order['status'] == 'PARTIALLY FILLED':
+                self.master.account.client.cancel_margin_order(symbol=self.tic, orderId=open_order['orderId'], isIsolated='TRUE')
+                self.open_order_id = []
+                partial_amount, partial_price = self.master.account.check_partial_order(self)
+                self.master.account.funds = self.master.account.funds - partial_amount*partial_price
+                self.master.account.long_acc = self.master.account.long_acc + partial_amount*partial_price
+                buy_amount = np.interp(0, self.interp_range, self.buy_distribution)
+                check = self.master.account.create_buy_order(self, (buy_amount/self.open_trail_point - partial_amount), self.open_trail_point, 'OPEN')
 
-        # if price >= self.buy_trail_point:
-        #     buy_amount = np.interp(0, self.interp_range, self.buy_distribution)
-        #     self.master.account.create_buy_order(self, buy_amount/price, price, 'OPEN')
-        #     self.buy_trail_point = 0
-        
         return
         
     def open_order(self, time, price, amount, comision):
         
-        self.open_amount_list = np.append(self.open_amount_list, [amount*price])
-        self.open_price_list = np.append(self.open_price_list, [price])
         self.open_time = time
         self.open_price = price
+
+        self.open_amount_list = np.append(self.open_amount_list, [amount*price])
         self.acc = np.sum([self.open_amount_list])
-        self.average_price = np.dot(self.open_price_list, self.open_amount_list)/self.acc
         self.open_asset_amount_list = np.append(self.open_asset_amount_list, [amount])
-        self.asset_acc = amount
-        self.asset_average_price = price
-        self.master.account.repay_loan(self, amount, price, 'Asset')
+        self.asset_acc = np.sum([self.open_asset_amount_list])
+        self.open_price_list = np.append(self.open_price_list, [price])
+        self.asset_average_price = np.dot(self.open_price_list, self.open_asset_amount_list)/self.asset_acc
         self.master.account.funds = self.master.account.funds - amount*price
         self.master.account.long_acc = self.master.account.long_acc + amount*price
         
@@ -133,7 +126,6 @@ class Symbol_long(object):
         self.can_average = True
         self.can_close = True
         self.can_open_trail = False
-        self.buy_trail_point = 0
         
         self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.max_leverage_funds*100
         new_row = self.master.account.notifier.tables['ponderation'](Date=str(time), Name=self.name, Long_ratio=self.master.wr_list[self.nick]['Long'], Short_ratio=self.master.wr_list[self.nick]['Short'])
@@ -159,83 +151,41 @@ class Symbol_long(object):
     
     def average_trailing(self, time, price):
 
-        # Checkear si el precio actual es menor que base_average_trail_min, en caso afirmativo:
-        # cambiar base_average_trail_list por average trail list
-
-        if price < self.base_average_trail_min:
+        if price < self.base_average_trail:
+            self.base_average_trail = price
+            self.average_trail_point = self.base_average_trail*(1 + self.buy_trail/100)
             
-            # # Cancelar orden stop loss limit
-            # # En el caso de que esté partially filled, incluir la parte que se ha llenado en la operativa, recalculando el precio medio:
-            # # Abrir una nueva orden al nuevo precio average_trail_point, descontando la parte que se ha llenado
+            open_order = self.master.account.client.get_margin_order(symbol=self.open_order_id['symbol'], orderId=self.open_order_id['orderId'], isIsolated='TRUE')
             
-            # # En el caso de que esté new:
-            # # Abrir una nueva orden al nuevo precio average_trail_point  
+            if open_order['status'] == 'FILLED':
+                self.master.account.check_filled_order(self)
 
-
-            self.base_average_trail_min = price
-            self.average_trail_point = self.base_average_trail_min*(1 + self.buy_trail/100)
+            elif open_order['status'] == 'NEW':
+                self.master.account.client.cancel_margin_order(symbol=self.tic, orderId=open_order['orderId'], isIsolated='TRUE')
+                self.open_order_id = []
+                buy_amount = self.calculate_interp()
+                check = self.master.account.create_buy_order(self, buy_amount/self.average_trail_point, self.average_trail_point, 'AVERAGE')
             
-            total_drop = (1 - self.average_trail_point/self.average_price) * 100
-            if total_drop <= self.drop_limit*self.drop:
-                buy_level = round(total_drop / self.drop, 1)
-            else:
-                buy_level = round(((total_drop - self.drop_limit*self.drop) / (self.drop + self.drop_param) + self.drop_limit), 1)
-            buy_amount = np.interp(buy_level, self.interp_range, self.buy_distribution) - self.acc
-
-            if self.master.account.funds - buy_amount < -self.master.account.max_leverage_funds or self.master.account.long_acc + buy_amount > self.master.account.max_leverage_funds:
-                free_funds = self.master.account.max_leverage_funds - self.master.account.long_acc
-                print('insufficient funds to long average, free funds: ', free_funds, buy_amount, self.master.account.funds, self.master.account.long_acc, self.master.account.max_leverage_funds)
-                self.master.account.notifier.register_output('Warn', self.name, self.side, 'Insufficient funds to long average, free funds: ' + str(free_funds))
-                if free_funds > 100:
-                    self.master.account.create_buy_order(self, free_funds/self.average_trail_point, self.average_trail_point, 'AVERAGE')
-                else:
-                    print('insufficient free funds: ', free_funds)
-            else:
-                self.master.account.create_buy_order(self, buy_amount/self.average_trail_point, self.average_trail_point, 'AVERAGE')
+            elif open_order['status'] == 'PARTIALLY FILLED':
+                self.master.account.client.cancel_margin_order(symbol=self.tic, orderId=open_order['orderId'], isIsolated='TRUE')
+                self.open_order_id = []
+                partial_amount, partial_price = self.master.account.check_partial_order(self)
+                self.master.account.funds = self.master.account.funds - partial_amount*partial_price
+                self.master.account.long_acc = self.master.account.long_acc + partial_amount*partial_price
+                buy_amount = self.calculate_interp()           
+                check = self.master.account.create_buy_order(self, (buy_amount/self.average_trail_point - partial_amount), self.average_trail_point, 'AVERAGE')
 
 
-
-
-
-        # # OOOOOOLD
-        # self.base_buy_trail_list.append(price)
-        # self.base_buy_trail_min = min(self.base_buy_trail_list)
-        # self.buy_trail_point = self.base_buy_trail_min*(1 + self.buy_trail/100)
-        
-        # if price >= self.buy_trail_point and price <= self.average_point:
-            
-        #     total_drop = (1 - price/self.open_price) * 100
-        #     if total_drop <= self.drop_limit*self.drop:
-        #         buy_level = round(total_drop / self.drop, 1)
-        #     else:
-        #         buy_level = round(((total_drop - self.drop_limit*self.drop) / (self.drop + self.drop_param) + self.drop_limit), 1)
-        #     buy_amount = np.interp(buy_level, self.interp_range, self.buy_distribution) - self.acc
-            
-        #     if self.master.account.funds - buy_amount < -self.master.account.max_leverage_funds or self.master.account.long_acc + buy_amount > self.master.account.max_leverage_funds:
-        #         free_funds = self.master.account.max_leverage_funds - self.master.account.long_acc
-        #         print('insufficient funds to long average, free funds: ', free_funds, buy_amount, self.master.account.funds, self.master.account.long_acc, self.master.account.max_leverage_funds)
-        #         self.master.account.notifier.register_output('Warn', self.name, self.side, 'Insufficient funds to long average, free funds: ' + str(free_funds))
-        #         if free_funds > 100:
-        #             self.master.account.create_buy_order(self, free_funds/price, price, 'AVERAGE')
-        #             self.buy_trail_point = 0
-        #         else:
-        #             print('insufficient free funds: ', free_funds)
-        #     else:
-        #         self.master.account.create_buy_order(self, buy_amount/price, price, 'AVERAGE')
-        #         self.buy_trail_point = 0
-            
         return
 
     def average_order(self, time, price, amount, comision):
         
         self.open_amount_list = np.append(self.open_amount_list, [amount*price])
-        self.open_price_list = np.append(self.open_price_list, [price])
         self.acc = np.sum([self.open_amount_list])
-        self.average_price = round(np.dot(self.open_price_list, self.open_amount_list)/self.acc, self.master.account.price_precision[self.asset])
         self.open_asset_amount_list = np.append(self.open_asset_amount_list, [amount])
         self.asset_acc = np.sum([self.open_asset_amount_list])
+        self.open_price_list = np.append(self.open_price_list, [price])
         self.asset_average_price = np.dot(self.open_price_list, self.open_asset_amount_list)/self.asset_acc
-        self.master.account.repay_loan(self, amount, price, 'Asset')
         self.master.account.funds = self.master.account.funds - amount*price
         self.master.account.long_acc = self.master.account.long_acc + amount*price
         
@@ -244,6 +194,7 @@ class Symbol_long(object):
             self.buy_level = round(total_drop / self.drop, 1)
         else:
             self.buy_level = round(((total_drop - self.drop_limit*self.drop) / (self.drop + self.drop_param) + self.drop_limit), 1)
+            
         last_drop = (1 - price/self.last_buy_price) * 100
     
         drop = np.interp(self.buy_level, self.interp_range, self.drop_distribution)
@@ -252,7 +203,6 @@ class Symbol_long(object):
 
         self.can_average = True
         self.can_average_trail = False
-        self.buy_trail_point = 0
         
         self.master.account.notifier.send_average_order_filled(price, amount, self, last_drop)
         
@@ -278,31 +228,28 @@ class Symbol_long(object):
     
     def close_trailing(self, time, price):
 
-        # Checkear si el precio actual es mayor que base_close_trail_max, en caso afirmativo:
-        # cambiar base_buy_trail_list por close trail list
+        if price < self.base_close_trail:
+            self.base_close_trail = price
+            self.close_trail_point = self.base_close_trail*(1 - self.sell_trail/100)
 
-        if price < self.base_close_trail_max:
-            self.base_close_trail_max = price
-            self.close_trail_point = self.base_close_trail_max*(1 - self.sell_trail/100)
+            open_order = self.master.account.client.get_margin_order(symbol=self.open_order_id['symbol'], orderId=self.open_order_id['orderId'], isIsolated='TRUE')
 
-            # # Cancelar orden stop loss limit
-            # # En el caso de que esté partially filled, incluir la parte que se ha llenado en la operativa, recalculando el precio medio:
-            # # Abrir una nueva orden al nuevo precio close_trail_point, descontando la parte que se ha llenado
-            
-            # # En el caso de que esté new:
-            # # Abrir una nueva orden al nuevo precio close_trail_point
-            self.master.account.create_sell_order(self, self.asset_acc, close_trail_point, 'CLOSE')
+            if open_order['status'] == 'FILLED':
+                self.master.account.check_filled_order(self)
 
+            elif open_order['status'] == 'NEW':
+                self.master.account.client.cancel_margin_order(symbol=self.tic, orderId=open_order['orderId'], isIsolated='TRUE')
+                self.open_order_id = []
+                check = self.master.account.create_sell_order(self, self.asset_acc, self.close_trail_point, 'CLOSE')
 
-        # # OOOOOOLD        
-        self.base_sell_trail_list.append(price)
-        self.base_sell_trail_max = max(self.base_sell_trail_list)
-        self.sell_trail_point = self.base_sell_trail_max*(1 - self.sell_trail/100)
+            elif open_order['status'] == 'PARTIALLY FILLED':
+                self.master.account.client.cancel_margin_order(symbol=self.tic, orderId=open_order['orderId'], isIsolated='TRUE')
+                self.open_order_id = []
+                partial_amount, partial_price = self.master.account.check_partial_order(self)
+                self.master.account.funds = self.master.account.funds + partial_amount*partial_price
+                self.master.account.long_acc = self.master.account.long_acc - partial_amount*partial_price
+                check = self.master.account.create_sell_order(self, self.asset_acc, self.close_trail_point, 'CLOSE')
 
-        if price <= self.sell_trail_point and price >= self.close_point:
-            self.master.account.create_sell_order(self, self.asset_acc, price, 'CLOSE')
-            self.sell_trail_point = 0
-        
         return
 
     def close_order(self, time, price, amount, comision):
@@ -312,7 +259,6 @@ class Symbol_long(object):
         self.duration = time - self.open_time
         self.master.account.funds = self.master.account.funds + amount*price
         self.master.account.long_acc = self.master.account.long_acc - self.acc
-        self.master.account.repay_loan(self, amount, price, 'Base')
         
         covered = round(((1 - self.last_buy_price/self.open_price) * 100), 2)
 
@@ -356,28 +302,23 @@ class Symbol_long(object):
         self.can_average = False
         self.can_close = False
         self.can_close_trail = False
-        self.sell_trail_point = 0
         
         return
 
     def logic(self, time, price):
 
         if self.status:
-            self.live_profit = (price/self.average_price - 1)
+            self.live_profit = (price/self.asset_average_price - 1)
             self.duration = time - self.open_time
 
-        # Checkear si hay alguna orden abierta
-        # Si la orden se ha completado, ejecutar la función correspondiente y cambiar los booleanos correspondientes
-        # Resetear base_open_trail_min y open_trail_point
-        # Si la orden no se ha completado, pass
+        open_order = self.master.account.client.get_margin_order(symbol=self.open_order_id['symbol'], orderId=self.open_order_id['orderId'], isIsolated='TRUE')
+        if open_order['status'] == 'FILLED':
+            self.master.account.check_filled_order(self)
 
         if self.can_open_trail:
             self.open_trailing(time, price)
             
         if self.can_open and self.switch:
-            self.can_open_trail = True
-            self.can_open = False
-            self.base_buy_trail_list = []
 
             if self.master.wr_list[self.nick]['Short'] >= self.level:
                 self.buy_distribution = np.cumsum(self.k**np.array(np.arange(0,50)) * self.master.account.initial_amount).astype('float64') * self.pond
@@ -386,85 +327,54 @@ class Symbol_long(object):
                 self.buy_distribution = np.cumsum(self.k**np.array(np.arange(0,50)) * self.master.account.initial_amount).astype('float64')
                 self.master.account.notifier.register_output('Info', self.name, self.side, 'Operation no ponderated')
 
-            # self.base_open_trail_list = []
-            # self.base_open_trail_list.append(price)
-            # Abrir orden stop loss limit al precio self.buy_trail_point
-            self.base_open_trail_min = price
-            self.open_trail_point = self.base_open_trail_min*(1 + self.buy_trail/100)
+            self.base_open_trail = price
+            self.open_trail_point = self.base_open_trail*(1 + self.buy_trail/100)
             buy_amount = np.interp(0, self.interp_range, self.buy_distribution)
-            self.master.account.create_buy_order(self, buy_amount/self.open_trail_point, self.open_trail_point, 'OPEN')
+            check = self.master.account.create_buy_order(self, buy_amount/self.open_trail_point, self.open_trail_point, 'OPEN')
+            if check:
+                self.can_open_trail = True
+                self.can_open = False
 
         if self.can_average_trail:
             self.average_trailing(time, price)
             
         if price < self.average_point and self.can_average:
 
-            # Abrir orden stop loss limit al precio self.average_trail_point 
-            # Checkear si hay fondos suficientes, en caso de que no, pass       
-            self.base_average_trail_min = price
-            self.average_trail_point = self.base_average_trail_min*(1 + self.buy_trail/100)
-
-            total_drop = (1 - self.average_trail_point/self.open_price) * 100
-            if total_drop <= self.drop_limit*self.drop:
-                buy_level = round(total_drop / self.drop, 1)
-            else:
-                buy_level = round(((total_drop - self.drop_limit*self.drop) / (self.drop + self.drop_param) + self.drop_limit), 1)
-            
-            buy_amount = np.interp(buy_level, self.interp_range, self.buy_distribution) - self.acc                      
-
-            if self.master.account.funds - buy_amount < -self.master.account.max_leverage_funds or self.master.account.long_acc + buy_amount > self.master.account.max_leverage_funds:
-                free_funds = self.master.account.max_leverage_funds - self.master.account.long_acc
-                self.master.account.notifier.register_output('Warn', self.name, self.side, 'Insufficient funds to long average, free funds: ' + str(free_funds))
-                if free_funds > 15:
-                    self.master.account.create_buy_order(self, free_funds/self.average_trail_point, self.average_trail_point, 'AVERAGE')
-                    self.can_average_trail = True
-                    self.can_average = False
-                    self.can_close_trail = False
-                    self.can_close = True
-                else:
-                    self.master.account.notifier.register_output('Warn', self.name, self.side, 'Insufficient free funds to long average')
-            else:
-                self.master.account.create_buy_order(self, buy_amount/self.average_trail_point, self.average_trail_point, 'AVERAGE')
+            self.base_average_trail = price
+            self.average_trail_point = self.base_average_trail*(1 + self.buy_trail/100)
+            buy_amount = self.calculate_interp()              
+            check = self.master.account.create_buy_order(self, buy_amount/self.average_trail_point, self.average_trail_point, 'AVERAGE')
+            if check:
                 self.can_average_trail = True
                 self.can_average = False
                 self.can_close_trail = False
                 self.can_close = True
 
-
-            # # OOOOOOLD
-            # total_drop = (1 - price/self.open_price) * 100
-            # if total_drop <= self.drop_limit*self.drop:
-            #     buy_level = round(total_drop / self.drop, 1)
-            # else:
-            #     buy_level = round(((total_drop - self.drop_limit*self.drop) / (self.drop + self.drop_param) + self.drop_limit), 1)
-            # buy_amount = np.interp(buy_level, self.interp_range, self.buy_distribution) - self.acc          
-            
-            # if self.master.account.funds - buy_amount < -self.master.account.max_leverage_funds or self.master.account.long_acc + buy_amount > self.master.account.max_leverage_funds:
-            #     print('insufficient funds to long average', buy_amount, self.master.account.funds, self.master.account.long_acc, self.master.account.max_leverage_funds)
-            # else:
-            #     self.can_average_trail = True
-            #     self.can_average = False
-            #     self.base_buy_trail_list = []
-            #     self.can_close_trail = False
-            #     self.can_close = True
-            #     # self.master.account.notifier.start_trailing(price, self, price*(1 + self.buy_trail/100), 'AVERAGING')
-    
         if self.can_close_trail:
             self.close_trailing(time, price)
             
         if price > self.close_point and self.can_close:
-            self.can_close_trail = True
-            self.can_close = False
-            self.base_sell_trail_list = []
-            self.can_average_trail = False
-            self.can_average = True
-            # self.master.account.notifier.start_trailing(price, self, price*(1 - self.sell_trail/100), 'CLOSE')
             
-            self.base_close_trail_max = price
-            self.close_trail_point = self.base_close_trail_max*(1 - self.sell_trail/100)
-            self.master.account.create_sell_order(self, self.asset_acc, self.close_trail_point, 'CLOSE')
-
+            self.base_close_trail = price
+            self.close_trail_point = self.base_close_trail*(1 - self.sell_trail/100)
+            check = self.master.account.create_sell_order(self, self.asset_acc, self.close_trail_point, 'CLOSE')
+            if check:
+                self.can_average_trail = False
+                self.can_average = True
+                self.can_close_trail = True
+                self.can_close = False
             
         return
+    
+    def calculate_interp(self):
+        
+        total_drop = (1 - self.average_trail_point/self.open_price) * 100
+        if total_drop <= self.drop_limit*self.drop:
+            buy_level = round(total_drop / self.drop, 1)
+        else:
+            buy_level = round(((total_drop - self.drop_limit*self.drop) / (self.drop + self.drop_param) + self.drop_limit), 1)
+        buy_amount = np.interp(buy_level, self.interp_range, self.buy_distribution) - self.acc      
+
+        return buy_amount   
     
 __all__ = ['Symbol_long']
