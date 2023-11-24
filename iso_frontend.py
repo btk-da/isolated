@@ -361,30 +361,36 @@ class Frontend():
             
             df_symbols = pd.read_sql_table('symbols', self.conn)
             
-            points = [list(action_points['AveragePoint']), list(action_points['AveragePrice']), list(action_points['Close_Point']), list(action_points['Buy_trail_point']), list(action_points['Sell_trail_point'])]
+            points = [list(action_points['Open_point']), list(action_points['Open_trail_point']), list(action_points['Average_price']), list(action_points['Average_point']), list(action_points['Average_trail_point']), list(action_points['Close_point']), list(action_points['Close_trail_point'])]
             
             # Agregar líneas horizontales para buy_point, average_price y sell_point
             # try:
             annotations = []
-            if int(df_symbols[df_symbols['Name'] == option]['Can_average'].iloc[0]) == 1 or int(df_symbols[df_symbols['Name'] == option]['Can_open'].iloc[0]) == 1:
-                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[0][0], points[0][0]], mode='lines', line=dict(color='rgba(0, 128, 0, 0.4)', width=2, dash='dash'), name='Average Point'))
-                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[0][0], xanchor='left', yanchor='middle', text='Average Point : ' + str(points[0][0]), showarrow=False, font=dict(color='green')))
+            if int(df_symbols[df_symbols['Name'] == option]['Can_open'].iloc[0]) == 1 or int(df_symbols[df_symbols['Name'] == option]['Can_open_trail'].iloc[0]) == 1:
+                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[0][0], points[0][0]], mode='lines', line=dict(color='rgba(0, 128, 0, 0.4)', width=2, dash='dash'), name='Open Point'))
+                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[0][0], xanchor='left', yanchor='middle', text='Open Point : ' + str(points[0][0]), showarrow=False, font=dict(color='green')))
+                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[1][0], points[1][0]], mode='lines', line=dict(color='rgba(0, 128, 0, 0.4)', width=2, dash='dash'), name='Open Trail Point'))
+                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[1][0], xanchor='left', yanchor='middle', text='Open Trail Point : ' + str(points[1][0]), showarrow=False, font=dict(color='green')))
                 
             if int(df_symbols[df_symbols['Name'] == option]['Symbol_status'].iloc[0]) == 1:
-                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[1][0], points[1][0]], mode='lines', line=dict(color='rgba(0, 0, 255, 0.3)', width=2, dash='dash'), name='Average Price'))
-                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[1][0], xanchor='left', yanchor='middle', text='Average Price : ' + str(points[1][0]), showarrow=False, font=dict(color='blue')))
+                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[2][0], points[2][0]], mode='lines', line=dict(color='rgba(0, 0, 255, 0.3)', width=2, dash='dash'), name='Average Price'))
+                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[2][0], xanchor='left', yanchor='middle', text='Average Price : ' + str(points[2][0]), showarrow=False, font=dict(color='blue')))
 
-            if int(df_symbols[df_symbols['Name'] == option]['Can_close'].iloc[0]) == 1:
-                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[2][0], points[2][0]], mode='lines', line=dict(color='rgba(255, 0, 0, 0.4)', width=2, dash='dash'), name='Close Point'))
-                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[2][0], xanchor='left', yanchor='middle', text='Close Point : ' + str(points[2][0]), showarrow=False, font=dict(color='red')))
+            if int(df_symbols[df_symbols['Name'] == option]['Can_average'].iloc[0]) == 1 or int(df_symbols[df_symbols['Name'] == option]['Can_average_trail'].iloc[0]) == 1:
+                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[3][0], points[3][0]], mode='lines', line=dict(color='rgba(0, 128, 0, 0.4)', width=2, dash='dash'), name='Average Point'))
+                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[3][0], xanchor='left', yanchor='middle', text='Average Point : ' + str(points[3][0]), showarrow=False, font=dict(color='green')))
+
+            if int(df_symbols[df_symbols['Name'] == option]['Can_close'].iloc[0]) == 1 or int(df_symbols[df_symbols['Name'] == option]['Can_close_trail'].iloc[0]) == 1:
+                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[5][0], points[5][0]], mode='lines', line=dict(color='rgba(255, 0, 0, 0.4)', width=2, dash='dash'), name='Close Point'))
+                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[5][0], xanchor='left', yanchor='middle', text='Close Point : ' + str(points[5][0]), showarrow=False, font=dict(color='red')))
             
-            if (int(df_symbols[df_symbols['Name'] == option]['Can_open_trail'].iloc[0]) == 1 or int(df_symbols[df_symbols['Name'] == option]['Can_average_trail'].iloc[0]) == 1) and points[3][0] != 0:
-                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[3][0], points[3][0]], mode='lines', line=dict(color='rgba(144, 238, 144, 0.4)', width=2, dash='dash'), name='Buy Trail Point'))
-                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[3][0], xanchor='left', yanchor='middle', text='Buy Trail Point : ' + str(points[3][0]), showarrow=False, font=dict(color='green')))
+            if int(df_symbols[df_symbols['Name'] == option]['Can_average_trail'].iloc[0]) == 1:
+                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[4][0], points[4][0]], mode='lines', line=dict(color='rgba(144, 238, 144, 0.4)', width=2, dash='dash'), name='Average Trail Point'))
+                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[4][0], xanchor='left', yanchor='middle', text='Average Trail Point : ' + str(points[4][0]), showarrow=False, font=dict(color='yellow')))
             
-            if int(df_symbols[df_symbols['Name'] == option]['Can_close_trail'].iloc[0]) == 1 and points[3][0] != 0:
-                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[4][0], points[4][0]], mode='lines', line=dict(color='rgba(255, 165, 0, 0.4)', width=2, dash='dash'), name='Sell Trail Point'))
-                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[4][0], xanchor='left', yanchor='middle', text='Sell Trail Point : ' + str(points[4][0]), showarrow=False, font=dict(color='orange')))
+            if int(df_symbols[df_symbols['Name'] == option]['Can_close_trail'].iloc[0]) == 1:
+                fig.add_trace(go.Scatter(x=[df_prices['Date'].min(), df_prices['Date'].max()], y=[points[6][0], points[6][0]], mode='lines', line=dict(color='rgba(255, 165, 0, 0.4)', width=2, dash='dash'), name='Close Trail Point'))
+                annotations.append(dict(xref='paper', yref='y', x=1.01, y=points[6][0], xanchor='left', yanchor='middle', text='Close Trail Point : ' + str(points[6][0]), showarrow=False, font=dict(color='orange')))
             
             fig.update_layout(annotations=annotations)
             st.plotly_chart(fig)

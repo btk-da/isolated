@@ -172,6 +172,22 @@ class Notifier():
             print('Send Error Post Error' + str(e))
         return
     
+    def send_balances(self, balances, t_balances, loans, asset):
+        
+        message = ('#BALANCES' + '\n' + 
+                   'Base balance: ' + str(round(balances['USDT'],2)) + '\n' + 
+                   'Base T balance: ' + str(round(t_balances['USDT'],2)) + '\n' + 
+                   'Asset balance: ' + str(round(balances[asset],5)) + '\n' + 
+                   'Asset T balance: ' + str(round(t_balances[asset],5)) + '\n' + 
+                   'Base loan: ' + str(round(loans['USDT'],2)) + '\n' + 
+                   'Asset loan: ' + str(round(loans[asset],5)))
+        try:  
+            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
+        except Exception as e:
+            print('Balances Post Error')
+        
+        return
+    
 __all__ = ['Notifier']
 
     

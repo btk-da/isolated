@@ -139,7 +139,6 @@ class Symbol_combi(object):
     def update_open_tr(self):
         
         time = datetime(datetime.now().year, datetime.now().month, datetime.now().day, datetime.now().hour, datetime.now().minute, datetime.now().second)
-        self.account.check_open_orders(time)
         self.account.calculate_nav(time)
         
         restart_open_tr = delete(self.account.notifier.tables['open_tr'])
@@ -189,12 +188,13 @@ class Symbol_combi(object):
             new_row = self.account.notifier.tables['status'](Date=str(time), 
                                                              Name=symbol.name,
                                                              Price=price,
-                                                             AveragePoint=symbol.average_point, 
-                                                             AveragePrice=symbol.average_price, 
-                                                             Close_Point=symbol.close_point,
-                                                             Buy_trail_point=symbol.buy_trail_point,
-                                                             Sell_trail_point=symbol.sell_trail_point)
-                                                             # Symbol_status=symbol.status,# Can_open=symbol.can_open, # Can_average=symbol.can_average,# Can_close=symbol.can_close,# Can_open_trail=symbol.can_open_trail, # Can_average_trail=symbol.can_average_trail, # Can_close_trail=symbol.can_close_trail)
+                                                             Open_point=symbol.open_point,
+                                                             Average_point=symbol.average_point, 
+                                                             Average_price=symbol.average_price, 
+                                                             Close_point=symbol.close_point,
+                                                             Open_trail_point=symbol.open_trail_point,
+                                                             Average_trail_point=symbol.average_trail_point,
+                                                             Close_trail_point=symbol.close_trail_point)
             sql_session.add(new_row)
             
             new_row = self.account.notifier.tables['symbols'](Name=symbol.name,

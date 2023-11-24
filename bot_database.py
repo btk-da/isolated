@@ -42,11 +42,13 @@ def init_database(assets, backup):
         Date = Column(String(50))
         Name = Column(String(50))
         Price = Column(Float)
-        AveragePoint = Column(Float)
-        AveragePrice = Column(Float)
-        Close_Point = Column(Float)
-        Buy_trail_point = Column(Float)
-        Sell_trail_point = Column(Float)
+        Open_point = Column(Float)
+        Average_point = Column(Float)
+        Average_price = Column(Float)
+        Close_point = Column(Float)
+        Open_trail_point = Column(Float)
+        Average_trail_point = Column(Float)
+        Close_trail_point = Column(Float)
     tables['status'] = Table2
 
     class Table3(sql_base):
@@ -62,7 +64,6 @@ def init_database(assets, backup):
         Amount = Column(Float)
         Cost = Column(Float)
         Commission = Column(Float)
-        Order_id = Column(Float)
     tables['orders'] = Table3
         
     class Table4(sql_base):
