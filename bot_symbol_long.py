@@ -136,9 +136,7 @@ class Symbol_long(object):
         sql_session.add(new_row)
         sql_session.commit()
         
-        # self.master.account.get_balances()
         self.master.account.notifier.send_open_order_filled(price, amount, self)
-        # self.master.account.notifier.send_balances(self.master.account.balances, self.master.account.t_balances, self.master.account.loans, self.asset)
     
         new_row = self.master.account.notifier.tables['funds'](Date=str(time), Funds=self.master.account.funds, Long_funds=self.master.account.long_acc, Short_funds=self.master.account.short_acc)
         sql_session.add(new_row)
@@ -216,10 +214,7 @@ class Symbol_long(object):
         self.can_average = True
         self.can_average_trail = False
         
-        # self.master.account.get_balances()
         self.master.account.notifier.send_average_order_filled(price, amount, self, last_drop)
-        # self.master.account.notifier.send_balances(self.master.account.balances, self.master.account.t_balances, self.master.account.loans, self.asset)
-
         
         new_row = self.master.account.notifier.tables['funds'](Date=str(time), Funds=self.master.account.funds, Long_funds=self.master.account.long_acc, Short_funds=self.master.account.short_acc)
         sql_session.add(new_row)
@@ -282,9 +277,7 @@ class Symbol_long(object):
         
         covered = round(((1 - self.last_buy_price/self.open_price) * 100), 2)
 
-        # self.master.account.get_balances()
         self.master.account.notifier.send_transaction_closed_filled(self, profit, usd_profit, self.commission, price, covered)
-        # self.master.account.notifier.send_balances(self.master.account.balances, self.master.account.t_balances, self.master.account.loans, self.asset)
 
         new_row = self.master.account.notifier.tables['funds'](Date=str(time), Funds=self.master.account.funds, Long_funds=self.master.account.long_acc, Short_funds=self.master.account.short_acc)
         sql_session.add(new_row)

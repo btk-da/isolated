@@ -173,7 +173,7 @@ def init_database(assets, backup):
         Asset_balance = Column(Float)
         Asset_t_balance = Column(Float)
         Asset_loan = Column(Float)
-    tables['balances'] = Table11
+    tables['balances'] = Table12
     
     if backup == True:
         print('database charged')

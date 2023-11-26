@@ -98,41 +98,10 @@ class Margin_account():
             self.get_base_balances(asset)
         return
     
-    # def check_balances(self):
-        
-    #     for asset in self.assets:
-    #         self.get_asset_balances(asset, self.amount_precision[asset])
-    #         self.get_base_balances(asset)
-    #         try:
-    #             price = float(self.client.get_symbol_ticker(symbol=asset+self.base_coin)['price'])
-    #         except Exception as e:
-    #             self.notifier.send_error(asset, 'Check balance price reading error: ' + str(e))
-            
-    #         real = self.balances[asset]
-    #         teor = self.t_balances[asset]
-            
-    #         diff = (self.t_balances[asset]/self.balances[asset] - 1)*100
-    #         diff_usd = (self.balances[asset] - self.t_balances[asset]) * price
-            
-    #         if real > 0:
-    #             diff = (self.balances[asset]/self.t_balances[asset] - 1)*100
-    #             diff_usd = (self.balances[asset] - self.t_balances[asset]) * price
-    #         elif real < 0:
-    #             diff = (self.loans[asset]/self.t_balances[asset] - 1)*100
-    #             diff_usd = (self.loans[asset] - self.t_balances[asset]) * price
-    #         else:
-    #             diff = (self.balances[asset]/0.0005 - 1)*100
-    #             diff_usd = (self.balances[asset] - self.t_balances[asset]) * price
-            
-    #         if abs(diff) > 5 and abs(diff_usd) > 10:
-    #             self.notifier.send_error(asset, 'Balances unmached: REAL: ' + str(round(self.balances[asset], self.amount_precision[asset])) + '\n' + 'TEORETHICAL: ' + str(round(self.t_balances[asset], self.amount_precision[asset])) + '\n' + ' DIFF USDT: ' + str(round(diff_usd, 2)))
-    #     return
-    
     def check_balances(self, time):
         
-        
         for asset in self.assets:
-            self.get_base_balances(asset)
+            self.get_balances()
            
             real = self.balances[self.base_coin]
             teor = self.t_balances[self.base_coin]

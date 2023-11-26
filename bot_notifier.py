@@ -28,8 +28,7 @@ class Notifier():
                    'Symbol: ' + str(symbol.name) + '\n' + 
                    'Price: ' + str(price) + '\n' + 
                    'Amount: ' + str(round(amount, 5)) + '\n' + 
-                   'Cost: ' + str(round(amount*price, 2)) + '$' + '\n' + 
-                   'Id: ' + str(symbol.open_order_id))
+                   'Cost: ' + str(round(amount*price, 2)) + '$')
         try:  
             requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
             self.register_output('Action', symbol.asset, symbol.side, str(action) + ' placed')

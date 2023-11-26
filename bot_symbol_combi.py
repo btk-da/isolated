@@ -145,8 +145,8 @@ class Symbol_combi(object):
         sql_session.execute(restart_open_tr)
         restart_status = delete(self.account.notifier.tables['status'])
         sql_session.execute(restart_status)
-        restart_balances = delete(self.account.notifier.tables['balances'])
-        sql_session.execute(restart_balances)
+        # restart_balances = delete(self.account.notifier.tables['balances'])
+        # sql_session.execute(restart_balances)
 
         try:
             sql_session.commit()
