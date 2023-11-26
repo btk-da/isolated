@@ -145,6 +145,8 @@ class Symbol_combi(object):
         sql_session.execute(restart_open_tr)
         restart_status = delete(self.account.notifier.tables['status'])
         sql_session.execute(restart_status)
+        restart_balances = delete(self.account.notifier.tables['balances'])
+        sql_session.execute(restart_balances)
 
         try:
             sql_session.commit()
@@ -226,7 +228,7 @@ class Symbol_combi(object):
             # print(symbol.name, 'Acc: ', round(symbol.acc, 2), 'DU: ', symbol.buy_level, 'Profit: ', round(symbol.live_profit*100,2), 'Profit $: ', round(symbol.live_profit*symbol.acc, 2), 'Duration: ', symbol.duration, 'Price: ', price)
             
         # print(time, 'SYMBOLS UPDATED')
-        self.account.check_balances()
+        self.account.check_balances(time)
         self.account.notifier.register_output('Info', 'general', 'general', 'Symbols updated')
         return
 

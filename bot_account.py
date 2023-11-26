@@ -128,7 +128,8 @@ class Margin_account():
     #             self.notifier.send_error(asset, 'Balances unmached: REAL: ' + str(round(self.balances[asset], self.amount_precision[asset])) + '\n' + 'TEORETHICAL: ' + str(round(self.t_balances[asset], self.amount_precision[asset])) + '\n' + ' DIFF USDT: ' + str(round(diff_usd, 2)))
     #     return
     
-    def check_balances(self):
+    def check_balances(self, time):
+        
         
         for asset in self.assets:
             self.get_base_balances(asset)
@@ -136,12 +137,23 @@ class Margin_account():
             real = self.balances[self.base_coin]
             teor = self.t_balances[self.base_coin]
             
-            diff = (teor/real - 1)*100
+            diff = (abs(teor)/abs(real) - 1)*100
             diff_usd = teor - real
             
         
-            if abs(diff) > 5 and abs(diff_usd) > 10:
+            if diff > 5 and abs(diff_usd) > 10:
                 self.notifier.send_error(asset, 'Balances unmached: REAL: ' + str(round(self.balances[asset], self.amount_precision[asset])) + '\n' + 'TEORETHICAL: ' + str(round(self.t_balances[asset], self.amount_precision[asset])) + '\n' + ' DIFF USDT: ' + str(round(diff_usd, 2)))
+        
+            new_row = self.notifier.tables['balances'](Date=str(time), Asset = asset,
+                                                       Base_balance = self.balances[self.base_coin],
+                                                       Base_t_balance = self.t_balances[self.base_coin],
+                                                       Base_loan = self.loans[self.base_coin],
+                                                       Asset_balance = self.balances[asset],
+                                                       Asset_t_balance = self.t_balances[asset],
+                                                       Asset_loan = self.loans[asset])
+        sql_session.add(new_row)
+        sql_session.commit()
+        
         return
     
     def calculate_nav(self, time):

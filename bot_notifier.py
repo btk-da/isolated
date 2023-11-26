@@ -22,14 +22,14 @@ class Notifier():
         self.gorka_s = 0.5
         
         
-    def send_order_placed(self, price, amount, symbol, action, id_, base_balance, asset_balance):
+    def send_order_placed(self, action, symbol, price, amount):
         
         message = ('#' + str(action) + '_PLACED' + '\n' + 
                    'Symbol: ' + str(symbol.name) + '\n' + 
                    'Price: ' + str(price) + '\n' + 
                    'Amount: ' + str(round(amount, 5)) + '\n' + 
                    'Cost: ' + str(round(amount*price, 2)) + '$' + '\n' + 
-                   'Id: ' + str(id_))
+                   'Id: ' + str(symbol.open_order_id))
         try:  
             requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
             self.register_output('Action', symbol.asset, symbol.side, str(action) + ' placed')

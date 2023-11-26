@@ -151,7 +151,6 @@ def init_database(assets, backup):
         Can_open_trail = Column(String(50))
         Can_average_trail = Column(String(50))
         Can_close_trail = Column(String(50))
-
     tables['symbols'] = Table10
     
     class Table11(sql_base):
@@ -162,6 +161,19 @@ def init_database(assets, backup):
         Long_ratio = Column(Float)
         Short_ratio = Column(Float)
     tables['ponderation'] = Table11
+    
+    class Table12(sql_base):
+        __tablename__ = 'balances'
+        id = Column(Integer, primary_key=True)
+        Date = Column(String(50))
+        Asset = Column(String(50))
+        Base_balance = Column(Float)
+        Base_t_balance = Column(Float)
+        Base_loan = Column(Float)
+        Asset_balance = Column(Float)
+        Asset_t_balance = Column(Float)
+        Asset_loan = Column(Float)
+    tables['balances'] = Table11
     
     if backup == True:
         print('database charged')
