@@ -17,6 +17,7 @@ class Margin_account():
         self.available_funds = 0
         self.max_leverage = 10
         self.max_leverage_funds = self.available_funds * self.max_leverage
+        self.indiv_max_leverage_funds = self.max_leverage_funds/1
         self.initial_amount = 11
         
         self.nav = 0
@@ -32,11 +33,13 @@ class Margin_account():
         
         self.client = Client('HxC4DjBJjOv6lqiDdgnF1c7SW3SYYKnmvRyg1KAW4UY4oa5Ndbz3yAi7Z4TtXky9', 'RwwVEqxVzRmtcxf8sAvMcu6kwz6OxEtxsbcTBDTjgHrsmzqgpCjFcBq0aeW93rEU')
         self.price_precision = {'BTC':2, 'ETH':2, 'BNB':1, 'XRP':4, 'ADA':4, 'LTC':2, 'SOL':2, 'ATOM':3, 'BCH':1, 
-                                'DOGE':5, 'DOT':3, 'EOS':3, 'LINK':3, 'TRX':5, 'USDT':2}
-        self.amount_precision = {'BTC':5, 'ETH':4, 'BNB':3, 'XRP':0, 'ADA':1, 'LTC':3, 'SOL':2, 'ATOM':2, 'BCH':3, 
-                                'DOGE':0, 'DOT':2, 'EOS':1, 'LINK':2, 'TRX':1, 'USDT':2}
+                                'DOGE':5, 'DOT':3, 'EOS':3, 'LINK':3, 'TRX':5, 'SHIB':8, 'AVAX':2, 'XLM':4, 'UNI':3, 
+                                'ETC':2, 'FIL':3, 'HBAR':4, 'VET':5, 'NEAR':3, 'GRT':4, 'AAVE':2, 'DASH':2, 'MATIC':4, 'USDT':2}
+        self.amount_precision = {'BTC':5, 'ETH':4, 'BNB':3, 'XRP':0, 'ADA':1, 'LTC':3, 'SOL':2, 'ATOM':2, 'BCH':3,
+                                'DOGE':0, 'DOT':2, 'EOS':1, 'LINK':2, 'TRX':1, 'SHIB':0, 'AVAX':2, 'XLM':0, 'UNI':2, 
+                                'ETC':2, 'FIL':2, 'HBAR':0, 'VET':1, 'NEAR':1, 'GRT':0, 'AAVE':3, 'DASH':3, 'MATIC':1, 'USDT':2}
         
-        self.open_order_list = []
+        # self.open_order_list = []
     
     def round_decimals_up(self, number, decimals):
         factor = 10 ** decimals
@@ -45,7 +48,6 @@ class Margin_account():
     def round_decimals_down(self, number, decimals):
         factor = 10 ** decimals
         return math.floor(number * factor) / factor
-    
     
     def get_initial_base_balances(self, asset):
         
@@ -74,7 +76,6 @@ class Margin_account():
             traceback.print_exc()
             self.notifier.register_output('Error', asset, 'general', 'Get base balance error: ' + str(e))
             self.notifier.send_error(asset, f"Get base balance error: {e}")
-
         return
     
     def get_asset_balances(self, asset, precision):
@@ -89,7 +90,6 @@ class Margin_account():
             traceback.print_exc()
             self.notifier.register_output('Error', asset, 'general', 'Get asset balance error: ' + str(e))
             self.notifier.send_error(asset, f"Get asset balance error: {e}")
-
         return
     
     def get_balances(self):
