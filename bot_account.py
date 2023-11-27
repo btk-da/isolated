@@ -49,20 +49,20 @@ class Margin_account():
         factor = 10 ** decimals
         return math.floor(number * factor) / factor
     
-    def get_initial_base_balances(self, asset):
-        
-        try:
-            for item in self.client.get_isolated_margin_account()['assets']:
-                if item['baseAsset']['asset'] == asset and item['quoteAsset']['asset'] == self.base_coin:
-                    base_balance = float(self.round_decimals_down(float(item['quoteAsset']['free']), 2))
-                    base_loan = float(self.round_decimals_down(float(item['quoteAsset']['borrowed']) + float(item['quoteAsset']['interest']), 2))
-            self.t_balances[self.base_coin] = base_balance
-        except Exception as e:
-            print(f"Get initial base balance error: {e}")
-            traceback.print_exc()
-            self.notifier.register_output('Error', asset, 'general', 'Get initial base balance error: ' + str(e))
-            self.notifier.send_error(asset, f"Get initial base balance error: {e}")
-        return base_balance, base_loan
+    # def get_initial_base_balances(self, asset):
+
+    #     try:
+    #         for item in self.client.get_isolated_margin_account()['assets']:
+    #             if item['baseAsset']['asset'] == asset and item['quoteAsset']['asset'] == self.base_coin:
+    #                 base_balance = float(self.round_decimals_down(float(item['quoteAsset']['free']), 2))
+    #                 base_loan = float(self.round_decimals_down(float(item['quoteAsset']['borrowed']) + float(item['quoteAsset']['interest']), 2))
+    #         self.t_balances[self.base_coin] = base_balance
+    #     except Exception as e:
+    #         print(f"Get initial base balance error: {e}")
+    #         traceback.print_exc()
+    #         self.notifier.register_output('Error', asset, 'general', 'Get initial base balance error: ' + str(e))
+    #         self.notifier.send_error(asset, f"Get initial base balance error: {e}")
+    #     return base_balance, base_loan
     
     def get_base_balances(self, asset):
         
@@ -105,25 +105,19 @@ class Margin_account():
            
             real = self.balances[self.base_coin]
             teor = self.t_balances[self.base_coin]
-            
             diff = (abs(teor)/abs(real) - 1)*100
             diff_usd = teor - real
-            
         
             if diff > 5 and abs(diff_usd) > 10:
                 self.notifier.send_error(asset, 'Balances unmached: REAL: ' + str(round(self.balances[asset], self.amount_precision[asset])) + '\n' + 'TEORETHICAL: ' + str(round(self.t_balances[asset], self.amount_precision[asset])) + '\n' + ' DIFF USDT: ' + str(round(diff_usd, 2)))
         
-            new_row = self.notifier.tables['balances'](Date=str(time), Asset = asset,
-                                                       Base_balance = self.balances[self.base_coin],
-                                                       Base_t_balance = self.t_balances[self.base_coin],
-                                                       Base_loan = self.loans[self.base_coin],
-                                                       Asset_balance = self.balances[asset],
-                                                       Asset_t_balance = self.t_balances[asset],
-                                                       Asset_loan = self.loans[asset],
-                                                       Action = action)
-        sql_session.add(new_row)
-        sql_session.commit()
-        
+            new_row = self.notifier.tables['balances'](Date=str(time), Asset = asset, Base_balance = self.balances[self.base_coin], Base_t_balance = self.t_balances[self.base_coin], Base_loan = self.loans[self.base_coin], Asset_balance = self.balances[asset], Asset_t_balance = self.t_balances[asset], Asset_loan = self.loans[asset], Action = action)
+            sql_session.add(new_row)
+        try:
+            sql_session.commit()
+        except exc.OperationalError as e:
+            self.notifier.send_error('NAV Commit', f"Error de conexión a la base de datos: {e}")
+            sql_session.rollback()       
         return
     
     def calculate_nav(self, time):
@@ -147,9 +141,7 @@ class Margin_account():
                 margin = 999
             else:
                 margin  = float(margin_account['totalAssetOfBtc'])/float(margin_account['totalLiabilityOfBtc'])
-                #self.bnb_margin_list.append(margin)
             btc_price = float(self.client.get_symbol_ticker(symbol='BTCUSDT')['price'])
-            #self.bnb_nav_list.append(float(margin_account['totalNetAssetOfBtc'])*btc_price)
             
             new_row = self.notifier.tables['nav'](Date=str(time), Nav=self.nav, Bnb_nav=float(margin_account['totalNetAssetOfBtc'])*btc_price)
             sql_session.add(new_row)
@@ -159,13 +151,11 @@ class Margin_account():
             try:
                 sql_session.commit()
             except exc.OperationalError as e:
-                print(f"Error de conexión a la base de datos: {e}")
                 self.notifier.send_error('NAV Commit', f"Error de conexión a la base de datos: {e}")
                 sql_session.rollback()  # Revertir cambios pendientes, si los hay
             self.notifier.register_output('Info', 'general', 'general', 'Nav calculated')
             
         except Exception as e:
-            print(f"Nav calculating error: {e}")
             self.notifier.register_output('Error', 'general', 'general', 'Nav calculating error: ' + str(e))
             self.notifier.send_error('NAV', f"Nav calculating error: {e}")
         return       

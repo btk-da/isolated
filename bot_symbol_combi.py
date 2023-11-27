@@ -15,7 +15,6 @@ class Symbol_combi(object):
         self.symbol_list = []
         self.account = []
         self.engine_working = True
-        
         self.wr_list = {}
         
     def add_symbols(self, symbols):
@@ -25,7 +24,6 @@ class Symbol_combi(object):
         for params in symbols:
             if params['drop'] > 0:
                 symbol = Symbol_long(params, self)
-                # self.wr_list[symbol.nick] = {'Long':0}
             elif params['drop'] < 0:
                 symbol = Symbol_short(params, self)
                 self.wr_list[symbol.nick] = {'Long':0, 'Short':0}
@@ -111,21 +109,22 @@ class Symbol_combi(object):
             self.account.t_balances[asset] = 0
             self.account.t_loans[asset] = 0
 
-        base_balance = 0
-        base_loan = 0
+        # base_balance = 0
+        # base_loan = 0
         for i in self.account.assets:
-            balance, loan = self.account.get_initial_base_balances(i)
-            base_balance = base_balance + balance
-            base_loan = base_loan + loan
+            self.account.get_base_balances(i)
+            # base_balance = base_balance + balance
+            # base_loan = base_loan + loan
             self.account.get_asset_balances(i, self.account.amount_precision[i])
 
-        self.account.balances[self.account.base_coin] = base_balance
-        self.account.loans[self.account.base_coin] = base_loan
+        # self.account.balances[self.account.base_coin] = base_balance
+        # self.account.loans[self.account.base_coin] = base_loan
         self.account.available_funds = self.account.balances[self.account.base_coin]
         self.account.max_leverage_funds = self.account.available_funds * self.account.max_leverage
+        self.account.indiv_max_leverage_funds = self.account.max_leverage_funds/1
         time = datetime(datetime.now().year, datetime.now().month, datetime.now().day, datetime.now().hour, datetime.now().minute, datetime.now().second)
-        print('Base balance: ', base_balance)
-        self.account.notifier.register_output('Info', 'general', 'general', 'Base balance: ' + str(base_balance))
+        print('Base balance: ', self.account.balances[self.account.base_coin])
+        self.account.notifier.register_output('Info', 'general', 'general', 'Base balance: ' + str(self.account.balances[self.account.base_coin]))
         print('Max funds: ', round(self.account.max_leverage_funds))
         self.account.notifier.register_output('Info', 'general', 'general', 'Max funds: ' + str(round(self.account.max_leverage_funds)))
         
@@ -145,6 +144,8 @@ class Symbol_combi(object):
         sql_session.execute(restart_open_tr)
         restart_status = delete(self.account.notifier.tables['status'])
         sql_session.execute(restart_status)
+        restart_symbols = delete(self.account.notifier.tables['symbols'])
+        sql_session.execute(restart_symbols)
         # restart_balances = delete(self.account.notifier.tables['balances'])
         # sql_session.execute(restart_balances)
 
@@ -152,13 +153,9 @@ class Symbol_combi(object):
             sql_session.commit()
         except exc.OperationalError as e:
             print(f"Error de conexión a la base de datos: {e}")
-            self.account.notifier.send_error('Restarting open_tr and status tables', f"Error de conexión a la base de datos: {e}")
+            self.account.notifier.send_error('Restarting database tables', f"Error de conexión a la base de datos: {e}")
             sql_session.rollback()
         
-        restart_symbols = delete(self.account.notifier.tables['symbols'])
-        sql_session.execute(restart_symbols)
-        sql_session.commit()
-
         for symbol in self.symbol_list:
 
             time = datetime(datetime.now().year, datetime.now().month, datetime.now().day, datetime.now().hour, datetime.now().minute, datetime.now().second)
@@ -166,7 +163,6 @@ class Symbol_combi(object):
             try:
                 price = float(self.account.client.get_symbol_ticker(symbol=symbol.tic)['price'])
             except Exception as e:
-                print('Error reading price', symbol.name)
                 self.account.notifier.send_error(symbol.name, 'Price reading error: ' + str(e))
                 traceback.print_exc()
                 self.account.notifier.register_output('Error', symbol.asset, symbol.side, 'Reading price failed: ' + str(e))

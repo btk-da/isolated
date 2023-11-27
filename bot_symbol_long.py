@@ -21,7 +21,7 @@ class Symbol_long(object):
         self.tic = self.asset + self.master.account.base_coin
         self.name = self.asset + '--L'
         self.side = 'Long'
-        self.nick = str(abs(self.drop)) + str(self.profit) + str(self.k)
+        self.nick = str(abs(self.drop)) + str(self.profit) + str(self.k) + self.asset
 
         self.switch = True
         self.status = False
@@ -133,7 +133,7 @@ class Symbol_long(object):
         self.can_close = True
         self.can_open_trail = False
         
-        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.max_leverage_funds*100
+        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.indiv_max_leverage_funds*100
         new_row = self.master.account.notifier.tables['ponderation'](Date=str(time), Name=self.name, Long_ratio=self.master.wr_list[self.nick]['Long'], Short_ratio=self.master.wr_list[self.nick]['Short'])
         sql_session.add(new_row)
         sql_session.commit()
@@ -234,7 +234,7 @@ class Symbol_long(object):
             sql_session.rollback()
             
         self.last_buy_price = price
-        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.max_leverage_funds*100
+        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.indiv_max_leverage_funds*100
         new_row = self.master.account.notifier.tables['ponderation'](Date=str(time), Name=self.name, Long_ratio=self.master.wr_list[self.nick]['Long'], Short_ratio=self.master.wr_list[self.nick]['Short'])
         sql_session.add(new_row)
         sql_session.commit()
@@ -313,7 +313,7 @@ class Symbol_long(object):
         self.average_price = 0
         self.commission = 0
         
-        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.max_leverage_funds*100
+        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.indiv_max_leverage_funds*100
         new_row = self.master.account.notifier.tables['ponderation'](Date=str(time), Name=self.name, Long_ratio=self.master.wr_list[self.nick]['Long'], Short_ratio=self.master.wr_list[self.nick]['Short'])
         sql_session.add(new_row)
         sql_session.commit()

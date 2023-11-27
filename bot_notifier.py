@@ -10,17 +10,12 @@ class Notifier():
     
     def __init__(self) -> None:
         
-        #self.token = '5437213668:AAEoW6ErWWVHm81j7Jdi3-rzec2fUbNCIEI'
-        #self.id_bot = '-1001865143871'
-        self.token = '6332743294:AAFKcqzyfKzXAPSGhR6eTKLPMyx0tpCzeA4'
-        # self.id_bot_aita = '-1001517241898'
-        self.id_bot = '-1002027509507'
-        self.id_error_bot = '-1002041194998'
         self.tables = {}
-        self.total_equity = 0
-        self.gorka_equity = 2000
-        self.gorka_s = 0.5
+        self.token = '6332743294:AAFKcqzyfKzXAPSGhR6eTKLPMyx0tpCzeA4'
         
+        self.eqs = {'gorka':6690, 'total':6690}
+        self.parts = {'gorka':1}
+        self.ids = {'gorka':'-1002116297039', 'error':'-1002041194998', 'general':'-1002027509507'}
         
     def send_order_placed(self, action, symbol, price, amount):
         
@@ -30,12 +25,11 @@ class Notifier():
                    'Amount: ' + str(round(amount, 5)) + '\n' + 
                    'Cost: ' + str(round(amount*price, 2)) + '$')
         try:  
-            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
+            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.ids['general'], 'text': message, 'parse_mode': 'HTML'})
             self.register_output('Action', symbol.asset, symbol.side, str(action) + ' placed')
         except Exception as e:
             print(str(action) + ' Placed Order Post Error')
             self.register_output('Error', symbol.asset, symbol.side, 'Order Placed Post Error: ' + str(e))
-        
         return
     
     def send_open_order_filled(self, price, amount, symbol):
@@ -48,7 +42,7 @@ class Notifier():
                    'Average Point: ' + str(round(symbol.average_point, symbol.master.account.price_precision[symbol.asset])) + '\n' +
                    'Close Point: ' + str(round(symbol.close_point, symbol.master.account.price_precision[symbol.asset])))
         try:  
-            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
+            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.ids['general'], 'text': message, 'parse_mode': 'HTML'})
             self.register_output('Action', symbol.asset, symbol.side, 'Open filled')
         except Exception as e:
             print('Open Order Post Error')
@@ -70,7 +64,7 @@ class Notifier():
                    'Average Point: ' + str(round(symbol.average_point, symbol.master.account.price_precision[symbol.asset])) + '\n' +
                    'Close Point: ' + str(round(symbol.close_point, symbol.master.account.price_precision[symbol.asset])))
         try:  
-            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
+            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.ids['general'], 'text': message, 'parse_mode': 'HTML'})
             self.register_output('Action', symbol.asset, symbol.side, 'Average filled')
         except Exception as e:
             print('Average Order Post Error')
@@ -80,7 +74,7 @@ class Notifier():
     
     def send_transaction_closed_filled(self, symbol, profit, usd_profit, commission, price, covered):
         
-        self.total_equity = self.total_equity + usd_profit        
+        self.eqs['total'] = self.eqs['total'] + usd_profit
         
         message = ('#OPERACION CERRADA' + '\n' + 
                    'Symbol: ' + str(symbol.name) + '\n' + 
@@ -88,48 +82,34 @@ class Notifier():
                    'Beneficio (%): ' + str(round(profit*100, 2)) + '% \n' + 
                    'Beneficio ($): ' + str(round(float(usd_profit), 3)) + '\n' +
                    '% Cubierto: ' + str(covered) + '\n' +
-                   'Precio: ' + str(price) + '\n' +
+                   'Precio: ' + str(round(price, symbol.master.account.price_precision[symbol.asset])) + '\n' +
                    'Duracion: ' + str(symbol.duration) + '\n' + 
-                   'Nº de compras: ' + str(symbol.buy_level) + '\n' + 
                    'Comision ($): ' + str(np.around(commission, 5)) + '\n' +
-                   'Beneficio Total: ' + str(np.around(self.total_equity, 2)))
+                   'Beneficio Total: ' + str(round(self.eqs['total'], 2)))
         
-        self.operation_client(usd_profit)
+        self.operation_client(usd_profit)        
         try:
-            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
+
+            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.ids['general'], 'text': message, 'parse_mode': 'HTML'})
             self.register_output('Action', symbol.asset, symbol.side, 'Close filled')
         except Exception as e:
-            print('Transaction Closed Post Error')
             self.register_output('Error', symbol.asset, symbol.side, 'Transaction Closed Post Error: ' + str(e))
+        
         return
     
     def operation_client(self, usd_profit):
         
-        self.gorka_equity = self.gorka_equity + usd_profit*self.gorka_s      
+        for client in self.parts:
+            client_profit = float(usd_profit)*self.parts[client]/100
+            self.eqs[client] = self.eqs[client] + client_profit
         
-        message = ('#OPERACION CERRADA GORKA' + '\n' + 
-                   'Beneficio Gorka ($): ' + str(round(float(usd_profit)*self.gorka_s, 4)) + '\n' +
-                   'Beneficio Total Gorka: ' + str(np.around(self.gorka_equity, 2)))
-        try:
-            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
-        except Exception as e:
-            print('Transaction Closed Post Error' + str(e))
-        
-        return
-    
-    def send_cancel_order(self, asset, side, action, id_):
-        
-        message = ('#CANCEL_ORDER_ ' + '\n' + 
-                   'Asset: ' + str(asset) + '\n' + 
-                   'Side: ' + str(side) + '\n' + 
-                   'Action: ' + str(action) + '\n' + 
-                   'Id: ' + str(id_))
-        try:  
-            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
-            self.register_output('Cancel order', asset, side, str(action) + ' ' + str(id_))
-        except Exception as e:
-            print('Cancel Order Post Error')
-            self.register_output('Error', asset, side, 'Cancel Order Post Error: ' + str(e))
+            message = ('#OPERATION CLOSED' + '\n' + 
+                       'Profit ($): ' + str(round(client_profit, 4)) + '\n' +
+                       'Total: ' + str(round(self.eqs[client], 2)))
+            try:
+                requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.ids[client], 'text': message, 'parse_mode': 'HTML'})
+            except Exception as e:
+                print('Transaction Closed Post Error' + str(e))
         
         return
     
@@ -143,20 +123,6 @@ class Notifier():
         except exc.OperationalError as e:
             print(f"Error de conexión a la base de datos: {e}")
             sql_session.rollback()  # Revertir cambios pendientes, si los hay
-        return
-    
-    def start_trailing(self, price, symbol, tr_price, action):
-        
-        message = ('#START_TRAILING' + '\n' + 
-                   'Symbol: ' + str(symbol.name) + '\n' + 
-                   'Action: ' + str(action) + '\n' + 
-                   'Price: ' + str(price) + '\n' + 
-                   'Trailing Point: ' + str(round(tr_price, 2)))
-        try:  
-            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
-        except Exception as e:
-            print('Open Order Post Error' + str(e))
-        
         return
     
     def send_error(self, symbol, error):
@@ -181,12 +147,10 @@ class Notifier():
                    'Base loan: ' + str(round(loans['USDT'],2)) + '\n' + 
                    'Asset loan: ' + str(round(loans[asset],5)))
         try:  
-            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.id_bot, 'text': message, 'parse_mode': 'HTML'})
+            requests.post('https://api.telegram.org/bot' + self.token + '/sendMessage', data={'chat_id': self.ids['general'], 'text': message, 'parse_mode': 'HTML'})
         except Exception as e:
-            print('Balances Post Error')
+            print('Balances Post Error' + str(e))
         
         return
     
 __all__ = ['Notifier']
-
-    

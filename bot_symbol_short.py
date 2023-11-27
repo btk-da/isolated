@@ -21,7 +21,7 @@ class Symbol_short(object):
         self.tic = self.asset + self.master.account.base_coin
         self.name = self.asset + '--S'
         self.side = 'Short'
-        self.nick = str(abs(self.drop)) + str(self.profit) + str(self.k)
+        self.nick = str(abs(self.drop)) + str(self.profit) + str(self.k) + self.asset
 
         self.switch = True
         self.status = False
@@ -133,7 +133,7 @@ class Symbol_short(object):
         self.can_close = True
         self.can_open_trail = False
         
-        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.max_leverage_funds*100
+        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.indiv_max_leverage_funds*100
         new_row = self.master.account.notifier.tables['ponderation'](Date=str(time), Name=self.name, Long_ratio=self.master.wr_list[self.nick]['Long'], Short_ratio=self.master.wr_list[self.nick]['Short'])
         sql_session.add(new_row)
         sql_session.commit()
@@ -235,7 +235,7 @@ class Symbol_short(object):
             sql_session.rollback()
         
         self.last_buy_price = price
-        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.max_leverage_funds*100
+        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.indiv_max_leverage_funds*100
         new_row = self.master.account.notifier.tables['ponderation'](Date=str(time), Name=self.name, Long_ratio=self.master.wr_list[self.nick]['Long'], Short_ratio=self.master.wr_list[self.nick]['Short'])
         sql_session.add(new_row)
         sql_session.commit()
@@ -282,8 +282,8 @@ class Symbol_short(object):
 
         self.master.account.funds = self.master.account.funds - self.acc 
         self.master.account.short_acc = self.master.account.short_acc - self.acc
-        self.master.account.t_balances[self.asset] = self.master.account.t_balances[self.asset] - amount
-        self.master.account.t_balances[self.master.account.base_coin] = self.master.account.t_balances[self.master.account.base_coin] + self.acc - comision
+        self.master.account.t_balances[self.asset] = self.master.account.t_balances[self.asset] + amount
+        self.master.account.t_balances[self.master.account.base_coin] = self.master.account.t_balances[self.master.account.base_coin] - self.acc - comision
     
         covered = round(((self.last_buy_price/self.open_price - 1) * 100), 2)
 
@@ -315,7 +315,7 @@ class Symbol_short(object):
         self.average_price = 0
         self.commission = 0
         
-        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.max_leverage_funds*100
+        self.master.wr_list[self.nick][self.side] = self.acc/self.master.account.indiv_max_leverage_funds*100
         new_row = self.master.account.notifier.tables['ponderation'](Date=str(time), Name=self.name, Long_ratio=self.master.wr_list[self.nick]['Long'], Short_ratio=self.master.wr_list[self.nick]['Short'])
         sql_session.add(new_row)
         sql_session.commit()

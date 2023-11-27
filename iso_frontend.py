@@ -28,7 +28,6 @@ url = 'https://api.telegram.org/bot6332743294:AAFKcqzyfKzXAPSGhR6eTKLPMyx0tpCzeA
 st.set_page_config(page_title='MARTINGALA', page_icon=':chart_with_upwards_trend:', layout='wide')
 
 
-
 class Frontend():
     
     def __init__(self):
@@ -65,29 +64,6 @@ class Frontend():
         finally:
             conexion.close()
 
-        
-        # with open("master.pickle", "rb") as f:
-        #     symbol_list = pickle.load(f)
-        
-        # selected_symbol = next(symbol for symbol in symbol_list if symbol.name == new_params['name'])
-        # mapeo = {'Drop': 'drop', 'TP': 'profit', 'K': 'k', 'Buy Trail': 'buy_trail', 'Sell Trail': 'sell_trail', 'Drop Param':'drop_param', 'Level': 'level', 'Pond': 'pond',
-        #             'Switch': 'switch', 'Status': 'status', 'Can Open': 'can_open', 'Can Average': 'can_average', 'Can Close': 'can_close', 
-        #             'Can Open Trail': 'can_open_trail', 'Can Average Trail': 'can_average_trail', 'Can Close Trail': 'can_close_trail'}
-        
-        # if new_params['attribute'] in mapeo:
-        #     attribute_name = mapeo[new_params['attribute']]
-        #     if attribute_name in ['switch', 'status', 'can_open', 'can_average', 'can_close', 'can_open_trail', 'can_average_trail', 'can_close_trail']:
-        #         setattr(selected_symbol, attribute_name, bool(int(new_params['value'])))
-        #     else:
-        #         setattr(selected_symbol, attribute_name, new_params['value'])
-        #     warn = 'Changed completed ' + 'Symbol: ' + selected_symbol.name + 'Param: ' + attribute_name + 'New Value: ' + str(new_params['value'])
-        
-        # time.sleep(5)
-        # st.write(warn)
-
-        # with open("master.pickle", "wb") as f:
-        #     pickle.dump(symbol_list, f)
-            
         try:
             time.sleep(5)
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as front_logic_socket:
@@ -100,9 +76,6 @@ class Frontend():
                 
                 serialized_params = pickle.dumps(new_params)
                 front_logic_socket.send(serialized_params)
-                
-                # mensaje = warn.encode('utf-8')
-                # front_logic_socket.send(mensaje)
                 st.warning(str(new_params) + ' sent')
 
         except OSError as e:
@@ -188,9 +161,6 @@ class Frontend():
                 
                 serialized_switch = pickle.dumps(switch_params)
                 front_logic_socket.send(serialized_switch)
-                
-                # mensaje = warn.encode('utf-8')
-                # front_logic_socket.send(mensaje)
                 st.warning(str(switch_params) + ' sent')
                 
         except OSError as e:
@@ -238,7 +208,7 @@ class Frontend():
             showlegend=False,
             title={'text': 'Transactions'},  # Posición del título centrado encima de la tabla
             width=1200,  # Ancho de la tabla, puedes ajustarlo según tus necesidades
-            height=2000  # Altura de la tabla, puedes ajustarlo según tus necesidades
+            height=200  # Altura de la tabla, puedes ajustarlo según tus necesidades
         )
         
         # Mostrar la tabla en el dashboard de Streamlit

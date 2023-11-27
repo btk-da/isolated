@@ -128,7 +128,6 @@ def init_database(assets, backup):
         Amount = Column(Float)
         Filled = Column(Float)
         Timer=Column(Float)
-
     tables['open_orders'] = Table9
 
     class Table10(sql_base):

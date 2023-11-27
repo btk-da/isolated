@@ -123,11 +123,9 @@ if __name__ == '__main__':
                 print('Error de logic al conectar frontend: ', str(e))
                 requests.post(url, data={'chat_id': '-1001802125737', 'text':  'Error de logic al conectar frontend: ' + str(e), 'parse_mode': 'HTML'})
                 master.account.notifier.send_error('General', 'Error de logic al conectar frontend: ', str(e))
-                # time.sleep(30)
             finally:
                 logic_front_socket.close()
 
-            
         elif master.engine_working == False:
             
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as front_server:
