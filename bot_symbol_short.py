@@ -116,10 +116,12 @@ class Symbol_short(object):
         self.open_price_list = np.append(self.open_price_list, [price])
         self.average_price = np.dot(self.open_price_list, self.open_asset_amount_list)/self.asset_acc 
         
+        self.master.account.check_balances(time, 'Short Open Placed')
+        
         self.master.account.funds = self.master.account.funds + amount*price
         self.master.account.short_acc = self.master.account.short_acc + amount*price
         self.master.account.t_balances[self.asset] = self.master.account.t_balances[self.asset] - amount
-        self.master.account.t_balances[self.master.account.base_coin] = self.master.account.t_balances[self.master.account.base_coin] + amount*price
+        self.master.account.t_balances[self.master.account.base_coin] = self.master.account.t_balances[self.master.account.base_coin] + amount*price - comision
 
         drop = np.interp(self.buy_level, self.interp_range, self.drop_distribution)
 
@@ -137,6 +139,7 @@ class Symbol_short(object):
         sql_session.commit()
         
         self.master.account.notifier.send_open_order_filled(price, amount, self)
+        self.master.account.check_balances(time, 'Short Open Filled')
 
         new_row = self.master.account.notifier.tables['funds'](Date=str(time), Funds=self.master.account.funds, Long_funds=self.master.account.long_acc, Short_funds=self.master.account.short_acc)
         sql_session.add(new_row)
@@ -194,11 +197,13 @@ class Symbol_short(object):
         self.asset_acc = np.sum([self.open_asset_amount_list])
         self.open_price_list = np.append(self.open_price_list, [price])
         self.average_price = np.dot(self.open_price_list, self.open_asset_amount_list)/self.asset_acc
+        
+        self.master.account.check_balances(time, 'Short Average Placed')
 
         self.master.account.funds = self.master.account.funds + amount*price          
         self.master.account.short_acc = self.master.account.short_acc + amount*price
         self.master.account.t_balances[self.asset] = self.master.account.t_balances[self.asset] - amount
-        self.master.account.t_balances[self.master.account.base_coin] = self.master.account.t_balances[self.master.account.base_coin] + amount*price
+        self.master.account.t_balances[self.master.account.base_coin] = self.master.account.t_balances[self.master.account.base_coin] + amount*price - comision
         
         total_drop = (price/self.open_price - 1) * 100
         if total_drop <= self.drop_limit*self.drop:
@@ -216,6 +221,7 @@ class Symbol_short(object):
         self.can_average_trail = False
         
         self.master.account.notifier.send_average_order_filled(price, amount, self, last_drop)
+        self.master.account.check_balances(time, 'Short Average Filled')
 
         new_row = self.master.account.notifier.tables['funds'](Date=str(time), Funds=self.master.account.funds, Long_funds=self.master.account.long_acc, Short_funds=self.master.account.short_acc)
         sql_session.add(new_row)
@@ -271,15 +277,18 @@ class Symbol_short(object):
         profit = 1 - price/self.average_price
         usd_profit = profit * self.acc - self.commission
         self.duration = time - self.open_time
+        
+        self.master.account.check_balances(time, 'Short Close Placed')
 
         self.master.account.funds = self.master.account.funds - self.acc 
         self.master.account.short_acc = self.master.account.short_acc - self.acc
         self.master.account.t_balances[self.asset] = self.master.account.t_balances[self.asset] - amount
-        self.master.account.t_balances[self.master.account.base_coin] = self.master.account.t_balances[self.master.account.base_coin] + self.acc
+        self.master.account.t_balances[self.master.account.base_coin] = self.master.account.t_balances[self.master.account.base_coin] + self.acc - comision
     
         covered = round(((self.last_buy_price/self.open_price - 1) * 100), 2)
 
         self.master.account.notifier.send_transaction_closed_filled(self, profit, usd_profit, self.commission, price, covered)        
+        self.master.account.check_balances(time, 'Short Close Filled')
 
         new_row = self.master.account.notifier.tables['funds'](Date=str(time), Funds=self.master.account.funds, Long_funds=self.master.account.long_acc, Short_funds=self.master.account.short_acc)
         sql_session.add(new_row)

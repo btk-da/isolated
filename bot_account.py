@@ -98,7 +98,7 @@ class Margin_account():
             self.get_base_balances(asset)
         return
     
-    def check_balances(self, time):
+    def check_balances(self, time, action):
         
         for asset in self.assets:
             self.get_balances()
@@ -119,7 +119,8 @@ class Margin_account():
                                                        Base_loan = self.loans[self.base_coin],
                                                        Asset_balance = self.balances[asset],
                                                        Asset_t_balance = self.t_balances[asset],
-                                                       Asset_loan = self.loans[asset])
+                                                       Asset_loan = self.loans[asset],
+                                                       Action = action)
         sql_session.add(new_row)
         sql_session.commit()
         
