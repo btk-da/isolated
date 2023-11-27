@@ -344,6 +344,8 @@ class Symbol_short(object):
                 self.buy_distribution = np.cumsum(self.k**np.array(np.arange(0,50)) * self.master.account.initial_amount).astype('float64')
                 self.master.account.notifier.register_output('Info', self.name, self.side, 'Operation no ponderated')
             
+            if len(self.open_order_id) != 0:
+                self.master.account.client.cancel_margin_order(symbol=self.tic, orderId=self.open_order_id['orderId'])
             self.base_open_trail = price
             self.open_trail_point = self.base_open_trail*(1 - self.sell_trail/100)
             self.open_point = price
@@ -363,6 +365,8 @@ class Symbol_short(object):
             
         if price > self.average_point and self.can_average:
             
+            if len(self.open_order_id) != 0:
+                self.master.account.client.cancel_margin_order(symbol=self.tic, orderId=self.open_order_id['orderId'])
             self.base_average_trail = price
             self.average_trail_point = self.base_average_trail*(1 - self.sell_trail/100)
             buy_amount = self.calculate_interp()              
@@ -385,6 +389,8 @@ class Symbol_short(object):
                         
         if price < self.close_point and self.can_close:
             
+            if len(self.open_order_id) != 0:
+                self.master.account.client.cancel_margin_order(symbol=self.tic, orderId=self.open_order_id['orderId'])
             self.base_close_trail = price
             self.close_trail_point = self.base_close_trail*(1 + self.buy_trail/100)
             check = self.master.account.create_buy_order(self, self.asset_acc, self.close_trail_point, 'CLOSE')
