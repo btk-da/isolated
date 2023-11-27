@@ -25,11 +25,11 @@ from sqlalchemy.exc import OperationalError
 
 url = 'https://api.telegram.org/bot6332743294:AAFKcqzyfKzXAPSGhR6eTKLPMyx0tpCzeA4/sendMessage'
 
-# inputs = [{'drop': 1, 'profit': 0.5, 'k': 1.2, 'buy_trail':0.25, 'sell_trail':0.15, 'drop_param':2.5, 'level':1, 'pond':5, 'asset': 'BTC'},
-#           {'drop': -1, 'profit': 0.5, 'k': 1.2, 'buy_trail':0.15, 'sell_trail':0.25, 'drop_param':2.5, 'level':1, 'pond':5, 'asset': 'BTC'}]
+inputs = [{'drop': 1, 'profit': 0.5, 'k': 1.3, 'buy_trail':0.25, 'sell_trail':0.15, 'drop_param':2.5, 'level':0.8, 'pond':5, 'asset': 'BTC'},
+          {'drop': -1, 'profit': 0.5, 'k': 1.3, 'buy_trail':0.25, 'sell_trail':0.15, 'drop_param':2.5, 'level':0.8, 'pond':5, 'asset': 'BTC'}]
 
-inputs = [{'drop': 0.25, 'profit': 0.2, 'k': 1.2, 'buy_trail':0.05, 'sell_trail':0.05, 'drop_param':2.5, 'level':0.1, 'pond':5, 'asset': 'BTC'},
-          {'drop': -0.25, 'profit': 0.2, 'k': 1.2, 'buy_trail':0.05, 'sell_trail':0.05, 'drop_param':2.5, 'level':0.1, 'pond':5, 'asset': 'BTC'}]
+# inputs = [{'drop': 0.25, 'profit': 0.2, 'k': 1.2, 'buy_trail':0.05, 'sell_trail':0.05, 'drop_param':2.5, 'level':0.8, 'pond':5, 'asset': 'BTC'},
+#           {'drop': -0.25, 'profit': 0.2, 'k': 1.2, 'buy_trail':0.05, 'sell_trail':0.05, 'drop_param':2.5, 'level':0.8, 'pond':5, 'asset': 'BTC'}]
 
 backup = False
 

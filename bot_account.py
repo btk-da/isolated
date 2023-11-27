@@ -18,7 +18,7 @@ class Margin_account():
         self.max_leverage = 10
         self.max_leverage_funds = self.available_funds * self.max_leverage
         self.indiv_max_leverage_funds = self.max_leverage_funds/1
-        self.initial_amount = 11
+        self.initial_amount = 50
         
         self.nav = 0
         self.margin = 999
@@ -111,7 +111,7 @@ class Margin_account():
             if diff > 5 and abs(diff_usd) > 10:
                 self.notifier.send_error(asset, 'Balances unmached: REAL: ' + str(round(self.balances[asset], self.amount_precision[asset])) + '\n' + 'TEORETHICAL: ' + str(round(self.t_balances[asset], self.amount_precision[asset])) + '\n' + ' DIFF USDT: ' + str(round(diff_usd, 2)))
         
-            new_row = self.notifier.tables['balances'](Date=str(time), Asset = asset, Base_balance = self.balances[self.base_coin], Base_t_balance = self.t_balances[self.base_coin], Base_loan = self.loans[self.base_coin], Asset_balance = self.balances[asset], Asset_t_balance = self.t_balances[asset], Asset_loan = self.loans[asset], Action = action)
+            new_row = self.notifier.tables['balances'](Date=str(time), Asset = asset, Base_balance = self.balances[self.base_coin], Base_t_balance = self.t_balances[self.base_coin], Base_loan = self.loans[self.base_coin], Asset_balance = self.balances[asset], Asset_t_balance = round(self.t_balances[asset], self.amount_precision[asset]), Asset_loan = self.loans[asset], Action = action)
             sql_session.add(new_row)
         try:
             sql_session.commit()

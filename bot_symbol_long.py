@@ -115,9 +115,7 @@ class Symbol_long(object):
         self.asset_acc = np.sum([self.open_asset_amount_list])
         self.open_price_list = np.append(self.open_price_list, [price])
         self.average_price = np.dot(self.open_price_list, self.open_asset_amount_list)/self.asset_acc
-        
-        self.master.account.check_balances(time, 'Long Open Placed')
-        
+                
         self.master.account.funds = self.master.account.funds - amount*price
         self.master.account.long_acc = self.master.account.long_acc + amount*price
         self.master.account.t_balances[self.asset] = self.master.account.t_balances[self.asset] + amount
@@ -197,8 +195,6 @@ class Symbol_long(object):
         self.open_price_list = np.append(self.open_price_list, [price])
         self.average_price = np.dot(self.open_price_list, self.open_asset_amount_list)/self.asset_acc
         
-        self.master.account.check_balances(time, 'Long Average Placed')
-
         self.master.account.funds = self.master.account.funds - amount*price
         self.master.account.long_acc = self.master.account.long_acc + amount*price
         self.master.account.t_balances[self.asset] = self.master.account.t_balances[self.asset] + amount
@@ -275,9 +271,7 @@ class Symbol_long(object):
         profit = (price/self.average_price - 1)
         usd_profit = profit * self.acc - self.commission
         self.duration = time - self.open_time
-        
-        self.master.account.check_balances(time, 'Long CLose Placed')
-        
+                
         self.master.account.funds = self.master.account.funds + self.acc
         self.master.account.long_acc = self.master.account.long_acc - self.acc
         self.master.account.t_balances[self.asset] = self.master.account.t_balances[self.asset] - amount
@@ -357,6 +351,7 @@ class Symbol_long(object):
                 self.can_open_trail = True
                 self.can_open = False
                 self.master.account.notifier.send_order_placed('OPEN', self, self.open_trail_point, buy_amount/self.open_trail_point)
+                self.master.account.check_balances(time, 'Long Open Placed')
             else:
                 self.can_open_trail = False
                 self.can_open = True
@@ -376,6 +371,7 @@ class Symbol_long(object):
                 self.can_close_trail = False
                 self.can_close = True
                 self.master.account.notifier.send_order_placed('AVERAGE', self, self.average_trail_point, buy_amount/self.average_trail_point)
+                self.master.account.check_balances(time, 'Long Average Placed')
             else:
                 self.can_average_trail = False
                 self.can_average = True
@@ -396,6 +392,7 @@ class Symbol_long(object):
                 self.can_close_trail = True
                 self.can_close = False
                 self.master.account.notifier.send_order_placed('CLOSE', self, self.close_trail_point, self.asset_acc)
+                self.master.account.check_balances(time, 'Long CLose Placed')
             else:
                 self.can_average_trail = False
                 self.can_average = True

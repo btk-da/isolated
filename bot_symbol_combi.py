@@ -119,6 +119,7 @@ class Symbol_combi(object):
 
         # self.account.balances[self.account.base_coin] = base_balance
         # self.account.loans[self.account.base_coin] = base_loan
+        self.account.t_balances[self.account.base_coin] = self.account.balances[self.account.base_coin]
         self.account.available_funds = self.account.balances[self.account.base_coin]
         self.account.max_leverage_funds = self.account.available_funds * self.account.max_leverage
         self.account.indiv_max_leverage_funds = self.account.max_leverage_funds/1
