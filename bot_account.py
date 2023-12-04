@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime
 import math
 from binance.client import Client
+from binance.exceptions import BinanceAPIException
 from bot_database import sql_session
 import traceback
 from sqlalchemy import exc
@@ -39,8 +40,8 @@ class Margin_account():
                                 'DOGE':0, 'DOT':2, 'EOS':1, 'LINK':2, 'TRX':1, 'SHIB':0, 'AVAX':2, 'XLM':0, 'UNI':2, 
                                 'ETC':2, 'FIL':2, 'HBAR':0, 'VET':1, 'NEAR':1, 'GRT':0, 'AAVE':3, 'DASH':3, 'MATIC':1, 'USDT':2}
         
-        # self.open_order_list = []
-    
+        return
+        
     def round_decimals_up(self, number, decimals):
         factor = 10 ** decimals
         return math.ceil(number * factor) / factor
@@ -48,21 +49,6 @@ class Margin_account():
     def round_decimals_down(self, number, decimals):
         factor = 10 ** decimals
         return math.floor(number * factor) / factor
-    
-    # def get_initial_base_balances(self, asset):
-
-    #     try:
-    #         for item in self.client.get_isolated_margin_account()['assets']:
-    #             if item['baseAsset']['asset'] == asset and item['quoteAsset']['asset'] == self.base_coin:
-    #                 base_balance = float(self.round_decimals_down(float(item['quoteAsset']['free']), 2))
-    #                 base_loan = float(self.round_decimals_down(float(item['quoteAsset']['borrowed']) + float(item['quoteAsset']['interest']), 2))
-    #         self.t_balances[self.base_coin] = base_balance
-    #     except Exception as e:
-    #         print(f"Get initial base balance error: {e}")
-    #         traceback.print_exc()
-    #         self.notifier.register_output('Error', asset, 'general', 'Get initial base balance error: ' + str(e))
-    #         self.notifier.send_error(asset, f"Get initial base balance error: {e}")
-    #     return base_balance, base_loan
     
     def get_base_balances(self, asset):
         
@@ -99,9 +85,10 @@ class Margin_account():
         return
     
     def check_balances(self, time, action):
+
+        self.get_balances()
         
         for asset in self.assets:
-            self.get_balances()
            
             real = self.balances[self.base_coin]
             teor = self.t_balances[self.base_coin]
@@ -186,6 +173,7 @@ class Margin_account():
     def create_buy_order(self, symbol, buy_amount_0, price, action):
         
         buy_amount = self.check_funds(buy_amount_0*price, 'BUY', price)
+        check = False
         
         if buy_amount > 0:
             order_qty = self.round_decimals_up(max(buy_amount, self.initial_amount/price), self.amount_precision[symbol.asset])
